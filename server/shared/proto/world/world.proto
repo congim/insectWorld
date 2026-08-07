@@ -1,0 +1,100 @@
+// World Service gRPC接口定义，提供地图/实体/视野/移动相关查询与操作。
+// 对应design.md 2.2.2.1节接口清单，保留现有接口并新增地形与视野查询接口。
+syntax = "proto3";
+
+package insectworld.world;
+
+option go_package = "insectworld/proto/world;worldpb";
+
+import "proto/common/common.proto";
+
+// WorldService World服务gRPC接口，提供地图与实体相关查询。
+service WorldService {
+  // 现有接口
+  rpc GetEntityPosition(GetPositionRequest) returns (PositionResponse);
+  rpc GetMapSnapshot(MapSnapshotRequest) returns (MapSnapshotResponse);
+  rpc CheckPassable(CheckPassableRequest) returns (CheckPassableResponse);
+  // 新增接口
+  rpc GetTerrainInfo(TerrainInfoRequest) returns (TerrainInfoResponse);
+  rpc GetVisionCells(VisionRequest) returns (VisionResponse);
+}
+
+// GetPositionRequest 查询实体位置请求
+message GetPositionRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 entity_id = 2;                          // 实体ID，全局唯一（规范8用int64）
+}
+
+// PositionResponse 实体位置响应
+message PositionResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  insectworld.common.Position position = 2;     // 实体当前坐标
+  int32 move_status = 3;                        // 移动状态：1=静止 2=移动中 3=已到达 4=已阻挡
+  int64 move_start_time = 4;                    // 移动开始时间戳（毫秒），0表示未移动
+}
+
+// MapSnapshotRequest 查询地图快照请求
+message MapSnapshotRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 map_id = 2;                             // 地图ID
+  insectworld.common.Position center = 3;      // 视野中心坐标
+  int32 radius = 4;                             // 视野半径（格子数）
+}
+
+// MapSnapshotResponse 地图快照响应
+message MapSnapshotResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  repeated CellData cells = 2;                  // 视野内格子数据列表
+}
+
+// CellData 单个格子数据
+message CellData {
+  insectworld.common.Position position = 1; // 格子坐标
+  int32 terrain_id = 2;                     // 地形类型ID（规范8用int32）
+  int64 entity_id = 3;                      // 格子上实体ID，0表示无实体
+  int32 entity_type = 4;                    // 实体类型：1=玩家 2=NPC 3=建筑
+}
+
+// CheckPassableRequest 查询可通行性请求
+message CheckPassableRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 map_id = 2;                             // 地图ID
+  insectworld.common.Position from = 3;        // 起点坐标
+  insectworld.common.Position to = 4;          // 终点坐标
+  int64 entity_id = 5;                          // 移动实体ID
+}
+
+// CheckPassableResponse 可通行性响应
+message CheckPassableResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  bool passable = 2;                            // 是否可通行
+}
+
+// TerrainInfoRequest 查询地形信息请求（新增接口）
+message TerrainInfoRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 map_id = 2;                             // 地图ID
+  insectworld.common.Position position = 3;    // 查询坐标
+}
+
+// TerrainInfoResponse 地形信息响应（新增接口）
+message TerrainInfoResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int32 terrain_id = 2;                         // 地形类型ID（规范8用int32）
+  int64 move_cost = 3;                          // 移动力消耗（规范8用int64）
+  int64 defense_bonus = 4;                      // 防御加成百分比
+  bool is_block = 5;                            // 是否阻挡移动
+  bool is_buildable = 6;                        // 是否可建造
+}
+
+// VisionRequest 查询视野格子请求（新增接口）
+message VisionRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 entity_id = 2;                          // 实体ID，查询该实体的可见格子
+}
+
+// VisionResponse 视野格子响应（新增接口）
+message VisionResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  repeated insectworld.common.Position cells = 2; // 可见格子坐标列表
+}

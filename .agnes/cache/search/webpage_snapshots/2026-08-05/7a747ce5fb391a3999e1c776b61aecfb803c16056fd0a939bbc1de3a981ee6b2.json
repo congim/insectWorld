@@ -1,0 +1,20 @@
+{
+  "kind": "webpage_snapshot",
+  "url": "https://en.wikipedia.org/wiki/Insect",
+  "final_url": "https://en.wikipedia.org/wiki/Insect",
+  "status": 200,
+  "read_status": "blocked",
+  "content_type": "text/html; charset=UTF-8",
+  "fetched_at": "2026-08-05T02:15:19.556760+00:00",
+  "title": "Insect - Wikipedia",
+  "description": "",
+  "site_name": null,
+  "published_at": null,
+  "source_type": "encyclopedia",
+  "text": "",
+  "quote_candidates": [],
+  "word_count": 0,
+  "truncated": false,
+  "blocked": true,
+  "source": "direct_http"
+}

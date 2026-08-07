@@ -1,0 +1,70 @@
+// Economy Service gRPC接口定义，提供资源/交易/转换相关查询与操作。
+// 对应design.md 2.2.2.3节接口清单，保留现有接口并新增联盟加成查询接口。
+syntax = "proto3";
+
+package insectworld.economy;
+
+option go_package = "insectworld/proto/economy;economypb";
+
+import "proto/common/common.proto";
+
+// EconomyService Economy服务gRPC接口，提供经济相关查询。
+service EconomyService {
+  // 现有接口
+  rpc GetPlayerResources(GetResourcesRequest) returns (ResourcesResponse);
+  rpc CheckSufficient(CheckSufficientRequest) returns (CheckSufficientResponse);
+  // 新增接口
+  rpc GetAllianceBonus(GetAllianceBonusRequest) returns (AllianceBonusResponse);
+}
+
+// GetResourcesRequest 查询玩家资源请求
+message GetResourcesRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 player_id = 2;                          // 玩家ID（规范8用int64）
+}
+
+// ResourcesResponse 玩家资源响应
+message ResourcesResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  repeated ResourceItem resources = 2;          // 资源列表
+}
+
+// ResourceItem 单个资源项
+message ResourceItem {
+  int32 resource_type = 1; // 资源类型ID（规范8用int32枚举）
+  int64 amount = 2;        // 当前数量（规范8用int64）
+  int64 capacity = 3;      // 容量上限
+  int64 production_rate = 4; // 产出速率，每Tick产出数量
+}
+
+// CheckSufficientRequest 查询资源充足性请求
+message CheckSufficientRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 player_id = 2;                          // 玩家ID
+  repeated ResourceItem required = 3;          // 需检查的资源列表
+}
+
+// CheckSufficientResponse 资源充足性响应
+message CheckSufficientResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  bool sufficient = 2;                          // 是否充足
+}
+
+// GetAllianceBonusRequest 查询联盟加成请求（新增接口）
+message GetAllianceBonusRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 player_id = 2;                          // 玩家ID
+}
+
+// AllianceBonusResponse 联盟加成响应（新增接口）
+message AllianceBonusResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int64 alliance_id = 2;                        // 联盟ID（规范8用int64）
+  repeated BonusItem bonuses = 3;               // 加成列表
+}
+
+// BonusItem 单个加成项
+message BonusItem {
+  int32 resource_type = 1; // 资源类型ID
+  double bonus_ratio = 2;  // 加成比例，配置数值用double（规范8配置数值例外）
+}

@@ -1,0 +1,102 @@
+// 领域事件Schema定义，所有领域事件继承DomainEvent基础消息。
+// 对应design.md 2.2.2节与tasks.md 3.8，定义新增事件Schema。
+// 所有事件继承DomainEvent基础消息（event_id/event_type/timestamp/aggregate_id/publisher/version），
+// 新增字段向前兼容，语义变更必须升version。
+syntax = "proto3";
+
+package insectworld.event;
+
+option go_package = "insectworld/proto/event;eventpb";
+
+import "proto/common/common.proto";
+
+// DomainEvent 领域事件基础消息，所有领域事件继承此消息。
+// 携带version字段用于事件版本兼容，消费者按version分支处理。
+message DomainEvent {
+  int64 event_id = 1;    // 事件ID，全局唯一，由雪花算法生成（规范8用int64）
+  string event_type = 2; // 事件类型，对应NATS主题名，如"world.terrain.changed"
+  int64 timestamp = 3;   // 事件发生时间戳（毫秒）（规范8用int64）
+  int64 aggregate_id = 4; // 聚合根ID，事件归属的聚合根
+  string publisher = 5;  // 事件发布者，发布事件的服务名
+  int32 version = 6;     // 事件Schema版本，语义变更必须升version（规范8用int32）
+}
+
+// TerrainChangedEvent 地形变更事件，Map聚合根变更地形后发布。
+// 对应缺口1，World Service发布，Economy Service订阅调整产出。
+message TerrainChangedEvent {
+  DomainEvent base = 1;                  // 基础事件信息
+  int64 map_id = 2;                      // 地图ID（规范8用int64）
+  insectworld.common.Position position = 3; // 变更坐标
+  int32 old_terrain_id = 4;              // 变更前地形ID（规范8用int32）
+  int32 new_terrain_id = 5;              // 变更后地形ID
+}
+
+// RegionCreatedEvent 区域创建事件，Region聚合根创建后发布。
+// 对应缺口1，World Service发布。
+message RegionCreatedEvent {
+  DomainEvent base = 1;                  // 基础事件信息
+  int64 region_id = 2;                   // 区域ID（规范8用int64）
+  insectworld.common.Position center = 3; // 区域中心坐标
+  int32 radius = 4;                      // 区域半径
+}
+
+// RegionDestroyedEvent 区域销毁事件，Region聚合根销毁后发布。
+// 对应缺口1，World Service发布，销毁前检查无活跃实体。
+message RegionDestroyedEvent {
+  DomainEvent base = 1;    // 基础事件信息
+  int64 region_id = 2;     // 区域ID
+}
+
+// WelfareDistributedEvent 联盟福利发放事件，WelfareService发放福利后发布。
+// 对应缺口4，Social Service发布，Economy Service订阅发放资源。
+message WelfareDistributedEvent {
+  DomainEvent base = 1;    // 基础事件信息
+  int64 alliance_id = 2;   // 联盟ID（规范8用int64）
+  int64 player_id = 3;     // 接收福利的玩家ID
+  int32 welfare_type = 4;  // 福利类型：1=每日 2=每周 3=一次性（规范8用int32）
+  int64 welfare_id = 5;    // 福利配置ID
+}
+
+// ProductionCompletedEvent 生产完成事件，ProductionLine生产完成后发布。
+// 对应缺口3，Economy Service发布。
+message ProductionCompletedEvent {
+  DomainEvent base = 1;       // 基础事件信息
+  int64 player_id = 2;        // 玩家ID（规范8用int64）
+  int32 resource_type = 3;    // 产出资源类型（规范8用int32）
+  int64 produced_amount = 4;  // 产出数量（规范8用int64）
+  int64 production_line_id = 5; // 生产线ID
+}
+
+// InheritCompletedEvent 赛季继承完成事件，SeasonInheritService继承完成后发布。
+// 对应缺口5，Operation Service发布。
+message InheritCompletedEvent {
+  DomainEvent base = 1;         // 基础事件信息
+  int64 old_season_id = 2;      // 旧赛季ID（规范8用int64）
+  int64 new_season_id = 3;      // 新赛季ID
+  int32 inherited_item_count = 4; // 继承数据项数量
+}
+
+// RewardDistributedEvent 赛季奖励发放事件，RewardDistributor发放奖励后发布。
+// 对应缺口5，Operation Service发布。
+message RewardDistributedEvent {
+  DomainEvent base = 1;    // 基础事件信息
+  int64 season_id = 2;     // 赛季ID（规范8用int64）
+  int64 player_id = 3;     // 接收奖励的玩家ID
+  int32 rank = 4;          // 玩家排名（规范8用int32）
+  repeated RewardItem rewards = 5; // 奖励列表
+}
+
+// RewardItem 单个奖励项
+message RewardItem {
+  int32 item_type = 1;  // 奖励类型：1=资源 2=道具（规范8用int32）
+  int32 item_id = 2;    // 物品ID
+  int64 amount = 3;     // 数量（规范8用int64）
+}
+
+// EventExpiredEvent 游戏事件过期事件，GameEvent过期后发布。
+// 对应缺口5，Operation Service发布。
+message EventExpiredEvent {
+  DomainEvent base = 1;    // 基础事件信息
+  int64 game_event_id = 2; // 游戏事件ID（规范8用int64）
+  int32 event_type = 3;    // 事件类型（规范8用int32）
+}

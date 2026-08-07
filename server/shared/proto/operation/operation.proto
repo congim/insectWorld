@@ -1,0 +1,90 @@
+// Operation Service gRPC接口定义，提供赛季/排行/事件相关查询与操作。
+// 对应design.md 2.2.2.5节接口清单，保留现有接口并新增历史与事件触发接口。
+syntax = "proto3";
+
+package insectworld.operation;
+
+option go_package = "insectworld/proto/operation;operationpb";
+
+import "proto/common/common.proto";
+
+// OperationService Operation服务gRPC接口，提供运营相关查询。
+service OperationService {
+  // 现有接口
+  rpc GetCurrentSeason(GetSeasonRequest) returns (SeasonResponse);
+  rpc GetRanking(GetRankingRequest) returns (RankingResponse);
+  // 新增接口
+  rpc GetSeasonHistory(SeasonHistoryRequest) returns (SeasonHistoryResponse);
+  rpc TriggerGameEvent(TriggerEventRequest) returns (TriggerEventResponse);
+}
+
+// GetSeasonRequest 查询当前赛季请求
+message GetSeasonRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+}
+
+// SeasonResponse 赛季响应
+message SeasonResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int64 season_id = 2;                          // 赛季ID（规范8用int64）
+  int32 phase = 3;                              // 当前阶段：1=准备 2=战争 3=结算（规范8用int32）
+  int64 phase_end_time = 4;                     // 阶段结束时间戳（毫秒）
+}
+
+// GetRankingRequest 查询排行榜请求
+message GetRankingRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int32 ranking_type = 2;                       // 排行榜类型：1=玩家 2=联盟（规范8用int32）
+  insectworld.common.Pagination pagination = 3; // 分页参数
+}
+
+// RankingResponse 排行榜响应
+message RankingResponse {
+  insectworld.common.ResponseHeader header = 1;          // 响应头
+  repeated RankingItem items = 2;                        // 排行榜条目列表
+  insectworld.common.PaginationResult pagination_result = 3; // 分页结果
+}
+
+// RankingItem 排行榜条目
+message RankingItem {
+  int32 rank = 1;       // 排名
+  int64 target_id = 2;  // 目标ID（玩家ID或联盟ID）
+  string target_name = 3; // 目标名称
+  int64 score = 4;      // 积分（规范8用int64）
+}
+
+// SeasonHistoryRequest 查询历史赛季请求（新增接口）
+message SeasonHistoryRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 season_id = 2;                          // 赛季ID，0表示查询最近赛季
+}
+
+// SeasonHistoryResponse 历史赛季响应（新增接口）
+message SeasonHistoryResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int64 season_id = 2;                          // 赛季ID
+  int32 final_phase = 3;                        // 最终阶段
+  int64 start_time = 4;                         // 赛季开始时间戳（毫秒）
+  int64 end_time = 5;                           // 赛季结束时间戳（毫秒）
+  repeated PhaseTimeline phases = 6;            // 各阶段时间线
+  repeated RankingItem final_ranking = 7;       // 最终排行榜
+}
+
+// PhaseTimeline 阶段时间线
+message PhaseTimeline {
+  int32 phase = 1;       // 阶段
+  int64 start_time = 2;  // 阶段开始时间戳（毫秒）
+  int64 end_time = 3;    // 阶段结束时间戳（毫秒）
+}
+
+// TriggerEventRequest 触发游戏事件请求（新增接口）
+message TriggerEventRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 event_id = 2;                           // 事件ID（规范8用int64）
+}
+
+// TriggerEventResponse 触发事件响应（新增接口）
+message TriggerEventResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  bool triggered = 2;                           // 是否触发成功
+}

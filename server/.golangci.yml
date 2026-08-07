@@ -1,0 +1,85 @@
+# golangci-lint配置文件，落地AGENTS.md第9章Go规范与第3章DDD架构规范。
+# 启用的linter覆盖规范9.3节全部CI静态检查要求。
+run:
+  timeout: 5m
+  go: "1.26"
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    # 错误处理规范（规范9）
+    - errcheck
+    # 代码格式化（规范9）
+    - gofmt
+    - goimports
+    # 代码质量（规范9）
+    - gosimple
+    - staticcheck
+    - ineffassign
+    - unparam
+    - unused
+    # 命名规范（规范5/9）
+    - revive
+    # DDD架构规范（规范3）- 禁止application直接import infrastructure
+    - depguard
+    # 禁止fmt.Println在非main包使用（规范7）
+    - forbidigo
+    # go vet检查
+    - govet
+    # 并发安全检查
+    - race
+
+linters-settings:
+  goimports:
+    local-prefixes: "insectworld/server"
+  revive:
+    rules:
+      # 导出标识符必须有注释（规范5）
+      - name: exported
+        severity: warning
+        arguments:
+          - "checkPrivateReceivers"
+          - "sayRepetitiveInsteadOfStutters"
+      # 包注释（规范5）
+      - name: package-comments
+        severity: warning
+      # 命名规范（规范9）
+      - name: var-naming
+        severity: warning
+  depguard:
+    rules:
+      # application层不得直接import infrastructure（规范3）
+      application-no-infrastructure:
+        list-mode: lax
+        files:
+          - "**/application/**/*.go"
+        deny:
+          - pkg: "insectworld/server/.*/infrastructure"
+            desc: "application层不得直接import infrastructure，通过domain层接口+DI解耦"
+      # domain层零外部依赖（规范3）
+      domain-no-external:
+        list-mode: lax
+        files:
+          - "**/domain/**/*.go"
+        deny:
+          - pkg: "insectworld/server/.*/infrastructure"
+            desc: "domain层不得依赖infrastructure"
+          - pkg: "gorm.io/gorm"
+            desc: "domain层不得依赖ORM SDK"
+          - pkg: "github.com/redis/go-redis"
+            desc: "domain层不得依赖Redis SDK"
+  forbidigo:
+    forbid:
+      - p: "fmt\\.Println"
+        pkg: "^fmt$"
+        msg: "禁止使用fmt.Println，使用zap结构化日志（规范7）"
+      - p: "log\\.Printf"
+        pkg: "^log$"
+        msg: "禁止使用log.Printf，使用zap结构化日志（规范7）"
+    exclude_godoc_examples: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-use-default: false
+  fix: false

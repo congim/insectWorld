@@ -1,0 +1,40 @@
+// 通用基础消息定义，所有gRPC请求/响应继承统一的基础消息。
+// 携带request_id/trace_id/player_id用于分布式链路关联（规范7日志关联字段）。
+syntax = "proto3";
+
+package insectworld.common;
+
+option go_package = "insectworld/proto/common;commonpb";
+
+// RequestHeader 请求头，所有gRPC请求携带，用于链路追踪与鉴权。
+message RequestHeader {
+  string request_id = 1;  // 请求ID，全局唯一，用于链路追踪
+  string trace_id = 2;    // 追踪ID，跨服务调用传递，用于分布式链路关联
+  int64 player_id = 3;    // 玩家ID，发起请求的玩家，0表示系统/运营调用
+}
+
+// ResponseHeader 响应头，所有gRPC响应携带，用于关联请求与错误处理。
+message ResponseHeader {
+  string request_id = 1;  // 请求ID，回传请求方的request_id用于关联
+  string trace_id = 2;    // 追踪ID，回传请求方的trace_id
+  int32 error_code = 3;   // 错误码，0表示成功，非0对应各服务错误码常量
+  string error_msg = 4;   // 错误消息，中文文案（规范5）
+}
+
+// Position 坐标值对象，地图格子坐标，使用整型（规范8）。
+message Position {
+  int32 x = 1;  // X轴坐标，格子坐标使用int32（规范8）
+  int32 y = 2;  // Y轴坐标，格子坐标使用int32（规范8）
+}
+
+// Pagination 分页参数，排行榜/历史等列表查询使用。
+message Pagination {
+  int32 page = 1;    // 页码，从1开始
+  int32 page_size = 2; // 每页数量
+}
+
+// PaginationResult 分页结果，携带总数与是否有下一页。
+message PaginationResult {
+  int64 total = 1;      // 总记录数
+  bool has_next = 2;    // 是否有下一页
+}

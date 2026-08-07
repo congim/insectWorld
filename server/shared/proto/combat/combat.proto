@@ -1,0 +1,83 @@
+// Combat Service gRPC接口定义，提供战斗/属性/战报相关查询与操作。
+// 对应design.md 2.2.2.2节接口清单，保留现有接口并新增战报查询接口。
+syntax = "proto3";
+
+package insectworld.combat;
+
+option go_package = "insectworld/proto/combat;combatpb";
+
+import "proto/common/common.proto";
+
+// CombatService Combat服务gRPC接口，提供战斗相关查询。
+service CombatService {
+  // 现有接口
+  rpc GetEntityAttributes(GetAttributesRequest) returns (AttributesResponse);
+  rpc GetCombatState(GetCombatStateRequest) returns (CombatStateResponse);
+  // 新增接口
+  rpc GetCombatReport(ReportRequest) returns (ReportResponse);
+}
+
+// GetAttributesRequest 查询参战方属性请求
+message GetAttributesRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 entity_id = 2;                          // 实体ID（规范8用int64）
+}
+
+// AttributesResponse 属性快照响应
+message AttributesResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int64 attack = 2;                             // 攻击力（规范8用int64）
+  int64 defense = 3;                            // 防御力
+  int64 hp = 4;                                 // 当前血量
+  int64 max_hp = 5;                             // 最大血量
+  int32 unit_type = 6;                          // 兵种类型（规范8用int32枚举）
+  int32 formation_id = 7;                       // 阵型ID
+}
+
+// GetCombatStateRequest 查询战斗状态请求
+message GetCombatStateRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 combat_id = 2;                          // 战斗ID（规范8用int64）
+}
+
+// CombatStateResponse 战斗状态响应
+message CombatStateResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int32 state = 2;                              // 战斗状态：1=进行中 2=结束 3=撤退（规范8用int32）
+  int32 current_round = 3;                      // 当前轮次
+  int32 max_rounds = 4;                         // 最大轮次
+  repeated int64 attacker_ids = 5;              // 攻击方实体ID列表
+  repeated int64 defender_ids = 6;              // 防守方实体ID列表
+}
+
+// ReportRequest 查询战报请求（新增接口）
+message ReportRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 combat_id = 2;                          // 战斗ID
+}
+
+// ReportResponse 战报响应（新增接口）
+message ReportResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int64 combat_id = 2;                          // 战斗ID
+  int32 result = 3;                             // 战斗结果：1=攻击方胜 2=防守方胜 3=平局
+  int32 total_rounds = 4;                       // 总轮次
+  int64 start_time = 5;                         // 战斗开始时间戳（毫秒）
+  int64 end_time = 6;                           // 战斗结束时间戳（毫秒）
+  repeated RoundReport rounds = 7;              // 各轮次战报
+}
+
+// RoundReport 单轮次战报
+message RoundReport {
+  int32 round = 1;              // 轮次序号
+  int64 attacker_damage = 2;    // 攻击方造成伤害（规范8用int64）
+  int64 defender_damage = 3;    // 防守方造成伤害
+  repeated SkillUsage skills = 4; // 技能使用记录
+}
+
+// SkillUsage 技能使用记录
+message SkillUsage {
+  int64 entity_id = 1;   // 使用技能的实体ID
+  int32 skill_id = 2;    // 技能ID（规范8用int32）
+  int64 effect_value = 3; // 效果数值
+}

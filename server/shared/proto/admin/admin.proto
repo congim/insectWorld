@@ -1,0 +1,137 @@
+// AdminService gRPC接口定义，运营管理操作协议。
+// 对应design.md 2.2.2.7节，提供配置热更/赛季管理/事件触发/玩家管理/公告发布能力。
+// 所有管理操作必须经过运营管理员鉴权+审计日志记录（安全设计.md）。
+syntax = "proto3";
+
+package insectworld.admin;
+
+option go_package = "insectworld/proto/admin;adminpb";
+
+import "proto/common/common.proto";
+
+// AdminService 运营管理服务gRPC接口，提供运营管理操作。
+service AdminService {
+  // 配置管理
+  rpc ReloadConfig(ReloadConfigRequest) returns (ReloadConfigResponse);
+  rpc RollbackConfig(RollbackConfigRequest) returns (RollbackConfigResponse);
+  // 赛季管理
+  rpc ForceTransitionPhase(ForceTransitionRequest) returns (ForceTransitionResponse);
+  rpc ForceResetSeason(ForceResetRequest) returns (ForceResetResponse);
+  // 事件管理
+  rpc ManualTriggerEvent(ManualTriggerRequest) returns (ManualTriggerResponse);
+  // 玩家管理
+  rpc BanPlayer(BanPlayerRequest) returns (BanPlayerResponse);
+  rpc UnbanPlayer(UnbanPlayerRequest) returns (UnbanPlayerResponse);
+  // 公告管理
+  rpc PublishNotice(PublishNoticeRequest) returns (PublishNoticeResponse);
+}
+
+// ReloadConfigRequest 触发配置热更请求
+message ReloadConfigRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  string admin_token = 2;                       // 运营管理员Token，鉴权用
+  int64 config_version = 3;                     // 目标配置版本号，0表示最新版本
+}
+
+// ReloadConfigResponse 配置热更响应
+message ReloadConfigResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int64 applied_version = 2;                    // 已生效的配置版本号
+}
+
+// RollbackConfigRequest 回滚配置请求
+message RollbackConfigRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  string admin_token = 2;                       // 运营管理员Token，鉴权用
+  int64 target_version = 3;                     // 目标回滚版本号
+}
+
+// RollbackConfigResponse 回滚配置响应
+message RollbackConfigResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int64 current_version = 2;                    // 回滚后的当前版本号
+}
+
+// ForceTransitionRequest 强制切换赛季阶段请求
+message ForceTransitionRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  string admin_token = 2;                       // 运营管理员Token，鉴权用
+  int64 season_id = 3;                          // 赛季ID（规范8用int64）
+  int32 target_phase = 4;                       // 目标阶段：1=准备 2=战争 3=结算（规范8用int32）
+}
+
+// ForceTransitionResponse 强制切换阶段响应
+message ForceTransitionResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int32 previous_phase = 2;                     // 切换前的阶段
+}
+
+// ForceResetRequest 强制重置赛季请求
+message ForceResetRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  string admin_token = 2;                       // 运营管理员Token，鉴权用
+  int64 season_id = 3;                          // 赛季ID
+}
+
+// ForceResetResponse 强制重置赛季响应
+message ForceResetResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  bool reset = 2;                               // 是否重置成功
+}
+
+// ManualTriggerRequest 手动触发游戏事件请求
+message ManualTriggerRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  string admin_token = 2;                       // 运营管理员Token，鉴权用
+  int64 event_id = 3;                           // 事件ID（规范8用int64）
+}
+
+// ManualTriggerResponse 手动触发事件响应
+message ManualTriggerResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  bool triggered = 2;                           // 是否触发成功
+}
+
+// BanPlayerRequest 封禁玩家请求
+message BanPlayerRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  string admin_token = 2;                       // 运营管理员Token，鉴权用
+  int64 player_id = 3;                          // 玩家ID（规范8用int64）
+  int64 duration_ms = 4;                        // 封禁时长（毫秒），0表示永久封禁
+  string reason = 5;                            // 封禁原因
+}
+
+// BanPlayerResponse 封禁玩家响应
+message BanPlayerResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  bool banned = 2;                              // 是否封禁成功
+}
+
+// UnbanPlayerRequest 解封玩家请求
+message UnbanPlayerRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  string admin_token = 2;                       // 运营管理员Token，鉴权用
+  int64 player_id = 3;                          // 玩家ID
+}
+
+// UnbanPlayerResponse 解封玩家响应
+message UnbanPlayerResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  bool unbanned = 2;                            // 是否解封成功
+}
+
+// PublishNoticeRequest 发布公告请求
+message PublishNoticeRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  string admin_token = 2;                       // 运营管理员Token，鉴权用
+  int32 notice_type = 3;                        // 公告类型：1=全服 2=指定玩家 3=指定联盟（规范8用int32）
+  string content = 4;                           // 公告内容
+  int64 duration_ms = 5;                        // 公告展示时长（毫秒）
+  repeated int64 target_ids = 6;                // 目标ID列表，notice_type=2时为玩家ID，=3时为联盟ID
+}
+
+// PublishNoticeResponse 发布公告响应
+message PublishNoticeResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int64 notice_id = 2;                          // 公告ID
+}

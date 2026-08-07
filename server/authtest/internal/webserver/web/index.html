@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户认证接口测试端</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>用户认证接口测试端</h1>
+
+        <section id="section-env" class="section">
+            <h2>1. 环境初始化</h2>
+            <div class="button-group">
+                <button id="btn-env-init" class="btn btn-primary">建库建表</button>
+                <button id="btn-env-status" class="btn btn-info">查询状态</button>
+                <button id="btn-env-cleanup" class="btn btn-warning">清理数据</button>
+                <button id="btn-env-destroy" class="btn btn-danger">销毁测试库</button>
+            </div>
+            <div id="env-result" class="result-area"></div>
+        </section>
+
+        <section id="section-sut" class="section">
+            <h2>2. 被测服务管理</h2>
+            <div class="button-group">
+                <button id="btn-sut-start" class="btn btn-primary">启动服务</button>
+                <button id="btn-sut-stop" class="btn btn-warning">停止服务</button>
+                <button id="btn-sut-status" class="btn btn-info">查询状态</button>
+            </div>
+            <div id="sut-status" class="status-display"></div>
+            <div id="sut-logs" class="log-area"></div>
+        </section>
+
+        <section id="section-auth" class="section">
+            <h2>3. 认证测试</h2>
+            <div class="auth-forms">
+                <div class="form-group">
+                    <h3>注册</h3>
+                    <input id="reg-username" type="text" placeholder="用户名" class="input">
+                    <input id="reg-password" type="text" placeholder="密码" class="input">
+                    <button id="btn-register" class="btn btn-primary">发送注册</button>
+                </div>
+                <div class="form-group">
+                    <h3>登录</h3>
+                    <input id="login-username" type="text" placeholder="用户名" class="input">
+                    <input id="login-password" type="text" placeholder="密码" class="input">
+                    <input id="login-device-id" type="text" placeholder="设备ID" class="input">
+                    <button id="btn-login" class="btn btn-primary">发送登录</button>
+                </div>
+                <div class="form-group">
+                    <h3>心跳</h3>
+                    <input id="hb-token" type="text" placeholder="令牌" class="input">
+                    <input id="hb-player-id" type="number" placeholder="玩家ID" class="input">
+                    <button id="btn-heartbeat" class="btn btn-primary">发送心跳</button>
+                </div>
+                <div class="form-group">
+                    <h3>登出</h3>
+                    <input id="logout-token" type="text" placeholder="令牌" class="input">
+                    <input id="logout-player-id" type="number" placeholder="玩家ID" class="input">
+                    <button id="btn-logout" class="btn btn-primary">发送登出</button>
+                </div>
+            </div>
+            <div id="auth-result" class="result-area"></div>
+        </section>
+
+        <section id="section-e2e" class="section">
+            <h2>4. 端到端测试</h2>
+            <div class="e2e-controls">
+                <input id="e2e-username" type="text" placeholder="用户名（空用默认）" class="input">
+                <input id="e2e-password" type="text" placeholder="密码（空用默认）" class="input">
+                <input id="e2e-device-id" type="text" placeholder="设备ID（空用默认）" class="input">
+                <button id="btn-e2e-run" class="btn btn-primary">执行五步流程</button>
+                <button id="btn-e2e-failure" class="btn btn-warning">执行失败场景</button>
+            </div>
+            <div id="e2e-report" class="report-area"></div>
+        </section>
+
+        <section id="section-history" class="section">
+            <h2>5. 请求历史</h2>
+            <button id="btn-clear-history" class="btn btn-info">清空历史</button>
+            <div id="history-list" class="history-list"></div>
+        </section>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

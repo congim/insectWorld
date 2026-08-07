@@ -1,0 +1,64 @@
+// Config Service gRPC接口定义，提供配置包提交/回滚/版本历史查询。
+// 对应design.md 2.2.2.6节接口清单，为运营管理面提供配置管理能力。
+syntax = "proto3";
+
+package insectworld.config;
+
+option go_package = "insectworld/proto/config;configpb";
+
+import "proto/common/common.proto";
+
+// ConfigService Config服务gRPC接口，提供配置包管理。
+service ConfigService {
+  rpc SubmitConfigPack(SubmitConfigRequest) returns (SubmitConfigResponse);
+  rpc RollbackConfig(RollbackRequest) returns (RollbackResponse);
+  rpc GetConfigVersionHistory(VersionHistoryRequest) returns (VersionHistoryResponse);
+}
+
+// SubmitConfigRequest 提交配置包请求
+message SubmitConfigRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  string config_pack_id = 2;                    // 配置包ID，标识本次提交的配置包
+  bytes config_data = 3;                        // 配置包数据（zip压缩后的二进制）
+  string md5 = 4;                               // 配置包MD5校验值
+}
+
+// SubmitConfigResponse 提交配置包响应
+message SubmitConfigResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int64 config_version = 2;                     // 分配的配置版本号（规范8用int64）
+}
+
+// RollbackRequest 回滚配置请求
+message RollbackRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 target_version = 2;                     // 目标回滚版本号（规范8用int64）
+}
+
+// RollbackResponse 回滚配置响应
+message RollbackResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int64 current_version = 2;                    // 回滚后的当前版本号
+}
+
+// VersionHistoryRequest 查询版本历史请求
+message VersionHistoryRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  insectworld.common.Pagination pagination = 2; // 分页参数
+}
+
+// VersionHistoryResponse 版本历史响应
+message VersionHistoryResponse {
+  insectworld.common.ResponseHeader header = 1;          // 响应头
+  repeated ConfigVersion versions = 2;                   // 版本历史列表
+  insectworld.common.PaginationResult pagination_result = 3; // 分页结果
+}
+
+// ConfigVersion 配置版本信息
+message ConfigVersion {
+  int64 version = 1;       // 版本号（规范8用int64）
+  string config_pack_id = 2; // 配置包ID
+  int64 submit_time = 3;   // 提交时间戳（毫秒）
+  string submitter = 4;    // 提交人
+  bool is_rolled_back = 5; // 是否已回滚
+}

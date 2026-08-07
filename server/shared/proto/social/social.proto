@@ -1,0 +1,82 @@
+// Social Service gRPC接口定义，提供玩家/联盟/外交相关查询与操作。
+// 对应design.md 2.2.2.4节接口清单，保留现有接口并新增联盟领土查询接口。
+syntax = "proto3";
+
+package insectworld.social;
+
+option go_package = "insectworld/proto/social;socialpb";
+
+import "proto/common/common.proto";
+
+// SocialService Social服务gRPC接口，提供社交相关查询。
+service SocialService {
+  // 现有接口
+  rpc GetPlayerInfo(GetPlayerInfoRequest) returns (PlayerInfoResponse);
+  rpc GetDiplomacyStatus(GetDiplomacyRequest) returns (DiplomacyResponse);
+  rpc CheckAlliancePermission(CheckPermissionRequest) returns (PermissionResponse);
+  // 新增接口
+  rpc GetPlayerAllianceTerritory(GetTerritoryRequest) returns (TerritoryResponse);
+}
+
+// GetPlayerInfoRequest 查询玩家信息请求
+message GetPlayerInfoRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 player_id = 2;                          // 玩家ID（规范8用int64）
+}
+
+// PlayerInfoResponse 玩家信息响应
+message PlayerInfoResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int64 player_id = 2;                          // 玩家ID
+  string player_name = 3;                       // 玩家名称
+  int64 alliance_id = 4;                        // 所属联盟ID，0表示无联盟
+  int32 alliance_role = 5;                      // 联盟职位（规范8用int32枚举）
+  int32 level = 6;                              // 玩家等级
+  bool online = 7;                              // 是否在线
+}
+
+// GetDiplomacyRequest 查询外交状态请求
+message GetDiplomacyRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 alliance_id_a = 2;                      // 联盟A ID
+  int64 alliance_id_b = 3;                      // 联盟B ID
+}
+
+// DiplomacyResponse 外交状态响应
+message DiplomacyResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int32 diplomacy_status = 2;                   // 外交状态：1=和平 2=同盟 3=战争 4=停战（规范8用int32）
+  int64 expire_time = 3;                        // 外交状态过期时间戳（毫秒），0表示永久
+}
+
+// CheckPermissionRequest 校验权限请求
+message CheckPermissionRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 player_id = 2;                          // 玩家ID
+  int32 action = 3;                             // 操作类型（规范8用int32枚举）
+}
+
+// PermissionResponse 权限校验响应
+message PermissionResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  bool allowed = 2;                             // 是否允许
+}
+
+// GetTerritoryRequest 查询联盟领土请求（新增接口）
+message GetTerritoryRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 player_id = 2;                          // 玩家ID，查询其所在联盟的领土
+}
+
+// TerritoryResponse 联盟领土响应（新增接口）
+message TerritoryResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  int64 alliance_id = 2;                        // 联盟ID
+  repeated TerritoryCell territories = 3;       // 领土格子列表
+}
+
+// TerritoryCell 单个领土格子
+message TerritoryCell {
+  insectworld.common.Position position = 1; // 领土格子坐标
+  int32 territory_type = 2;                // 领土类型：1=核心 2=普通 3=争议（规范8用int32）
+}

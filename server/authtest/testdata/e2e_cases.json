@@ -1,0 +1,29 @@
+{
+    "failureCases": [
+        {
+            "caseName": "重复注册",
+            "expectedErrorCode": 17012,
+            "expectedErrorMsg": "用户名已存在"
+        },
+        {
+            "caseName": "登录错误密码",
+            "expectedErrorCode": 17021,
+            "expectedErrorMsg": "密码错误"
+        },
+        {
+            "caseName": "登录不存在账号",
+            "expectedErrorCode": 17020,
+            "expectedErrorMsg": "账号不存在"
+        },
+        {
+            "caseName": "心跳无效令牌",
+            "expectedErrorCode": 17041,
+            "expectedErrorMsg": "令牌无效或已过期"
+        },
+        {
+            "caseName": "登出无效令牌",
+            "expectedErrorCode": 0,
+            "expectedErrorMsg": "登出幂等返回成功"
+        }
+    ]
+}
