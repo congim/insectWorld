@@ -521,7 +521,7 @@ const file_proto_economy_economy_proto_rawDesc = "" +
 	"\x0eEconomyService\x12f\n" +
 	"\x12GetPlayerResources\x12(.insectworld.economy.GetResourcesRequest\x1a&.insectworld.economy.ResourcesResponse\x12l\n" +
 	"\x0fCheckSufficient\x12+.insectworld.economy.CheckSufficientRequest\x1a,.insectworld.economy.CheckSufficientResponse\x12l\n" +
-	"\x10GetAllianceBonus\x12,.insectworld.economy.GetAllianceBonusRequest\x1a*.insectworld.economy.AllianceBonusResponseB%Z#insectworld/server/shared/proto/economy;economypbb\x06proto3"
+	"\x10GetAllianceBonus\x12,.insectworld.economy.GetAllianceBonusRequest\x1a*.insectworld.economy.AllianceBonusResponseB%Z#insectworld/proto/economy;economypbb\x06proto3"
 
 var (
 	file_proto_economy_economy_proto_rawDescOnce sync.Once

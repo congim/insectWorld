@@ -1073,7 +1073,7 @@ const file_proto_admin_admin_proto_rawDesc = "" +
 	"\x12ManualTriggerEvent\x12'.insectworld.admin.ManualTriggerRequest\x1a(.insectworld.admin.ManualTriggerResponse\x12V\n" +
 	"\tBanPlayer\x12#.insectworld.admin.BanPlayerRequest\x1a$.insectworld.admin.BanPlayerResponse\x12\\\n" +
 	"\vUnbanPlayer\x12%.insectworld.admin.UnbanPlayerRequest\x1a&.insectworld.admin.UnbanPlayerResponse\x12b\n" +
-	"\rPublishNotice\x12'.insectworld.admin.PublishNoticeRequest\x1a(.insectworld.admin.PublishNoticeResponseB!Z\x1finsectworld/server/shared/proto/admin;adminpbb\x06proto3"
+	"\rPublishNotice\x12'.insectworld.admin.PublishNoticeRequest\x1a(.insectworld.admin.PublishNoticeResponseB!Z\x1finsectworld/proto/admin;adminpbb\x06proto3"
 
 var (
 	file_proto_admin_admin_proto_rawDescOnce sync.Once

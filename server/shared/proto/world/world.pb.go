@@ -781,7 +781,7 @@ const file_proto_world_world_proto_rawDesc = "" +
 	"\x0eGetMapSnapshot\x12%.insectworld.world.MapSnapshotRequest\x1a&.insectworld.world.MapSnapshotResponse\x12b\n" +
 	"\rCheckPassable\x12'.insectworld.world.CheckPassableRequest\x1a(.insectworld.world.CheckPassableResponse\x12_\n" +
 	"\x0eGetTerrainInfo\x12%.insectworld.world.TerrainInfoRequest\x1a&.insectworld.world.TerrainInfoResponse\x12U\n" +
-	"\x0eGetVisionCells\x12 .insectworld.world.VisionRequest\x1a!.insectworld.world.VisionResponseB!Z\x1finsectworld/server/shared/proto/world;worldpbb\x06proto3"
+	"\x0eGetVisionCells\x12 .insectworld.world.VisionRequest\x1a!.insectworld.world.VisionResponseB!Z\x1finsectworld/proto/world;worldpbb\x06proto3"
 
 var (
 	file_proto_world_world_proto_rawDescOnce sync.Once

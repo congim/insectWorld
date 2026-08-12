@@ -1,0 +1,104 @@
+// Training Service gRPC接口定义，提供兵种训练队列/槽位/加速/取消相关操作。
+// 对应《通用SLG框架共性抽离方案_终版》P0-5 兵种训练骨头（#17）与《契约冻结草案》4.3 清单。
+// 契约冻结规则：本包为P3新增包 v1 冻结，字段编号不重用、消息只增不改、服务只加不改。
+syntax = "proto3";
+
+package insectworld.training;
+
+option go_package = "insectworld/proto/training;trainingpb";
+
+import "proto/common/common.proto";
+import "proto/event/domain_event.proto";
+
+// TrainingService 兵种训练服务gRPC接口，提供训练队列、槽位、加速与取消操作。
+// 兵种数值/训练时间/槽位数量留配置层（training 配置），本契约只承载训练指令与状态回传。
+service TrainingService {
+  // 发起训练，校验资源消耗与队列容量后进入训练队列
+  rpc StartTraining(StartTrainingRequest) returns (StartTrainingResponse);
+  // 取消训练，已消耗资源按配置比例返还
+  rpc CancelTraining(CancelTrainingRequest) returns (CancelTrainingResponse);
+  // 加速训练，消耗道具或资源立即完成当前任务
+  rpc AccelerateTraining(AccelerateTrainingRequest) returns (AccelerateTrainingResponse);
+}
+
+// TrainingTask 训练队列任务，训练任务统一入队串行或按槽位并行。
+message TrainingTask {
+  int64 task_id = 1;   // 训练任务ID，全局唯一，由雪花算法生成（规范8用int64）
+  int32 unit_type = 2; // 兵种类型，对应combat兵种配置ID（规范8用int32）
+  int64 count = 3;     // 训练数量（规范8用int64）
+  int32 slot = 4;      // 训练槽位ID，从1开始，并行槽位可同时训练
+  int32 queue_pos = 5; // 队列位置，1为正在执行的任务
+  int64 start_time = 6; // 任务开始时间戳（毫秒）
+  int64 end_time = 7;  // 任务结束时间戳（毫秒），0表示尚未排定
+  int32 status = 8;    // 任务状态：1=等待 2=训练中 3=已完成 4=已取消
+}
+
+// StartTrainingRequest 发起训练请求
+message StartTrainingRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int32 unit_type = 2;                          // 兵种类型
+  int64 count = 3;                              // 训练数量，须为正数且不超过队列余量
+}
+
+// StartTrainingResponse 发起训练响应
+message StartTrainingResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  TrainingTask task = 2;                        // 已入队的训练任务
+}
+
+// CancelTrainingRequest 取消训练请求
+message CancelTrainingRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 task_id = 2;                            // 训练任务ID
+}
+
+// CancelTrainingResponse 取消训练响应
+message CancelTrainingResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  TrainingTask task = 2;                        // 取消后的训练任务，状态为已取消
+}
+
+// AccelerateTrainingRequest 加速训练请求
+message AccelerateTrainingRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 task_id = 2;                            // 训练任务ID
+  int32 cost_type = 3;                          // 消耗类型：1=道具 2=资源 3=金币
+  int64 cost_amount = 4;                        // 消耗数量，服务端按剩余时间与配置单价校验
+}
+
+// AccelerateTrainingResponse 加速训练响应
+message AccelerateTrainingResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  TrainingTask task = 2;                        // 加速后的训练任务，完成时任务状态为已完成
+}
+
+// TrainingStartedEvent 训练开始事件，训练任务入队开始后发布。
+// 主题命名 event.training.started，订阅方用于记录训练行为与队列占用。
+message TrainingStartedEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 player_id = 2;                    // 发起训练的玩家ID
+  int64 task_id = 3;                      // 训练任务ID
+  int32 unit_type = 4;                    // 兵种类型
+  int64 count = 5;                        // 训练数量
+  int32 slot = 6;                         // 训练槽位ID
+}
+
+// TrainingCompletedEvent 训练完成事件，训练任务完成后发布。
+// 主题命名 event.training.completed，订阅方用于把兵种入库并加入玩家战力结算。
+message TrainingCompletedEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 player_id = 2;                    // 训练完成的玩家ID
+  int64 task_id = 3;                      // 训练任务ID
+  int32 unit_type = 4;                    // 兵种类型
+  int64 count = 5;                        // 完成数量
+}
+
+// TrainingCancelledEvent 训练取消事件，取消训练任务后发布。
+// 主题命名 event.training.cancelled，订阅方用于退还占用的队列与部分资源。
+message TrainingCancelledEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 player_id = 2;                    // 取消训练的玩家ID
+  int64 task_id = 3;                      // 训练任务ID
+  int32 unit_type = 4;                    // 兵种类型
+  int64 count = 5;                        // 取消数量
+}

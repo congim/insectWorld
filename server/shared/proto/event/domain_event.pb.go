@@ -803,7 +803,7 @@ const file_proto_event_domain_event_proto_rawDesc = "" +
 	"\x04base\x18\x01 \x01(\v2\x1e.insectworld.event.DomainEventR\x04base\x12\"\n" +
 	"\rgame_event_id\x18\x02 \x01(\x03R\vgameEventId\x12\x1d\n" +
 	"\n" +
-	"event_type\x18\x03 \x01(\x05R\teventTypeB!Z\x1finsectworld/server/shared/proto/event;eventpbb\x06proto3"
+	"event_type\x18\x03 \x01(\x05R\teventTypeB!Z\x1finsectworld/proto/event;eventpbb\x06proto3"
 
 var (
 	file_proto_event_domain_event_proto_rawDescOnce sync.Once

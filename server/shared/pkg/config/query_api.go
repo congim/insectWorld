@@ -79,4 +79,21 @@ type ConfigQueryAPI interface {
 
 	// GetMaxRounds 查询战斗类型的最大轮数，combatType为战斗类型ID，不存在返回0。
 	GetMaxRounds(ctx context.Context, combatType string) int
+
+	// GetWithVersion 按指定配置版本查询配置项，供快照类业务以冻结版本读取配置（ADR-004 3.1）。
+	// 战斗/生产队列等快照类业务全程用开战/开始时的configVersion查询，与当前热更版本解耦。
+	// 版本不可用返回ErrConfigVersionGone；版本存在但配置项缺失返回nil（存在性用HasWithVersion判断）。
+	GetWithVersion(ctx context.Context, extPointID string, key string, configVersion int64) (any, error)
+
+	// HasWithVersion 判断指定配置版本中配置项是否存在，供结算校验使用（ADR-004 3.2）。
+	// 版本不可用返回ErrConfigVersionGone；配置项存在返回true，否则false。
+	HasWithVersion(ctx context.Context, extPointID string, key string, configVersion int64) (bool, error)
+
+	// PinVersion 锁定配置版本，引用计数+1；快照类业务创建时调用（ADR-004 3.1版本保留机制）。
+	// 进行中实例引用的版本不被历史滚动清理，保证回滚后版本仍在。
+	PinVersion(ctx context.Context, configVersion int64) error
+
+	// UnpinVersion 释放配置版本引用，引用计数-1；业务结束时调用（ADR-004 3.4双向回滚语义）。
+	// 归零且超出保留上限后允许清理。
+	UnpinVersion(ctx context.Context, configVersion int64) error
 }

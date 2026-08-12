@@ -20,8 +20,8 @@ type RemoveMemberCommand struct {
 // RemoveMemberHandler 移除联盟成员命令处理器。
 type RemoveMemberHandler struct {
 	allianceRepo alliance.AllianceRepository // Alliance聚合根仓储接口
-	outbox       Outbox                       // 领域事件Outbox接口
-	logger       *zap.Logger                  // 结构化日志器（规范7）
+	outbox       Outbox                      // 领域事件Outbox接口
+	logger       *zap.Logger                 // 结构化日志器（规范7）
 }
 
 // NewRemoveMemberHandler 创建移除成员命令处理器实例。

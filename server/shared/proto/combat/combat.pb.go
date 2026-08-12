@@ -637,7 +637,7 @@ const file_proto_combat_combat_proto_rawDesc = "" +
 	"\rCombatService\x12g\n" +
 	"\x13GetEntityAttributes\x12(.insectworld.combat.GetAttributesRequest\x1a&.insectworld.combat.AttributesResponse\x12d\n" +
 	"\x0eGetCombatState\x12).insectworld.combat.GetCombatStateRequest\x1a'.insectworld.combat.CombatStateResponse\x12X\n" +
-	"\x0fGetCombatReport\x12!.insectworld.combat.ReportRequest\x1a\".insectworld.combat.ReportResponseB#Z!insectworld/server/shared/proto/combat;combatpbb\x06proto3"
+	"\x0fGetCombatReport\x12!.insectworld.combat.ReportRequest\x1a\".insectworld.combat.ReportResponseB#Z!insectworld/proto/combat;combatpbb\x06proto3"
 
 var (
 	file_proto_combat_combat_proto_rawDescOnce sync.Once

@@ -13,11 +13,12 @@ import (
 
 	domainaccount "insectworld/server/gateway/domain/account"
 	domainaudit "insectworld/server/gateway/domain/audit"
+	domainconfig "insectworld/server/gateway/domain/config"
 	gatewayerr "insectworld/server/gateway/domain/errors"
 	domainevent "insectworld/server/gateway/domain/event"
 	domainsession "insectworld/server/gateway/domain/session"
 	domaintoken "insectworld/server/gateway/domain/token"
-	"insectworld/server/gateway/infrastructure/websocket"
+	domainwebsocket "insectworld/server/gateway/domain/websocket"
 )
 
 // 封禁踢下线通知消息内容。
@@ -28,13 +29,14 @@ const banKickOutMessage = `{"type":"kick_out","reason":"banned"}`
 // 编排顺序：查询账号→Ban更新封禁状态→持久化→查询在线会话→
 // 若存在会话则销毁+令牌失效+推送踢下线+发布下线事件→审计日志→返回。
 type BanCommand struct {
-	accountRepo    domainaccount.AccountRepository // 账号仓储
-	sessionRepo    domainsession.SessionRepository // 会话仓储
-	tokenBlacklist domaintoken.TokenBlacklist      // 令牌黑名单
-	eventBus       eventbus.EventBus               // 事件总线
-	auditLogger    domainaudit.AuditLogger         // 审计日志
-	connManager    *websocket.ConnectionManager    // 连接管理器
-	logger         *zap.Logger                     // 结构化日志
+	accountRepo    domainaccount.AccountRepository   // 账号仓储
+	sessionRepo    domainsession.SessionRepository   // 会话仓储
+	tokenBlacklist domaintoken.TokenBlacklist        // 令牌黑名单
+	eventBus       eventbus.EventBus                 // 事件总线
+	auditLogger    domainaudit.AuditLogger           // 审计日志
+	connManager    domainwebsocket.ConnectionManager // 连接管理器
+	cfg            domainconfig.AuthConfig           // 认证配置，含SessionTTLMs用于令牌黑名单TTL计算
+	logger         *zap.Logger                       // 结构化日志
 }
 
 // NewBanCommand 创建封禁命令实例。
@@ -44,7 +46,8 @@ func NewBanCommand(
 	tokenBlacklist domaintoken.TokenBlacklist,
 	eventBus eventbus.EventBus,
 	auditLogger domainaudit.AuditLogger,
-	connManager *websocket.ConnectionManager,
+	connManager domainwebsocket.ConnectionManager,
+	cfg domainconfig.AuthConfig,
 	logger *zap.Logger,
 ) *BanCommand {
 	return &BanCommand{
@@ -54,6 +57,7 @@ func NewBanCommand(
 		eventBus:       eventBus,
 		auditLogger:    auditLogger,
 		connManager:    connManager,
+		cfg:            cfg,
 		logger:         logger,
 	}
 }
@@ -114,7 +118,7 @@ func (c *BanCommand) kickOutIfOnline(ctx context.Context, playerID int64, now in
 		return
 	}
 	_ = c.sessionRepo.Delete(ctx, playerID)
-	_ = c.tokenBlacklist.Invalidate(ctx, playerID, session.TokenVersion(), (session.LoginTime()+c.cfgSessionTTL(now)-now)/1000)
+	_ = c.tokenBlacklist.Invalidate(ctx, playerID, session.TokenVersion(), (session.LoginTime()+c.cfg.SessionTTLMs-now)/1000)
 	_ = c.connManager.Send(ctx, playerID, []byte(banKickOutMessage))
 
 	event := &domainevent.PlayerOfflineEvent{
@@ -124,11 +128,4 @@ func (c *BanCommand) kickOutIfOnline(ctx context.Context, playerID int64, now in
 	}
 	domainEvt, _ := event.ToDomainEvent(fmt.Sprintf("offline-%d-%d", playerID, now), 1)
 	_ = c.eventBus.Publish(ctx, domainEvt)
-}
-
-// cfgSessionTTL 占位方法，实际TTL应由配置注入。此处返回默认5分钟。
-//
-// TODO 后续从AuthConfig注入SessionTTLMs，当前简化为默认值。
-func (c *BanCommand) cfgSessionTTL(now int64) int64 {
-	return 300000
 }

@@ -1,0 +1,112 @@
+// Gathering Service gRPC接口定义，提供采集队分配/召回/状态查询相关操作。
+// 对应《通用SLG框架共性抽离方案_终版》P0-3 采集调度骨头（#15）与《契约冻结草案》4.3 清单。
+// 契约冻结规则：本包为P3新增包 v1 冻结，字段编号不重用、消息只增不改、服务只加不改。
+syntax = "proto3";
+
+package insectworld.gathering;
+
+option go_package = "insectworld/proto/gathering;gatheringpb";
+
+import "proto/common/common.proto";
+import "proto/event/domain_event.proto";
+
+// GatheringService 采集调度服务gRPC接口，提供采集队分配、召回与状态查询。
+// 采集状态机（去程→采集中→返程）由服务端驱动，客户端通过状态查询轮询或订阅事件感知。
+service GatheringService {
+  // 分配采集队前往目标地块，地块被占用时返回异常并发布 TileOccupiedEvent
+  rpc AssignGatherTeam(AssignGatherTeamRequest) returns (AssignGatherTeamResponse);
+  // 召回采集队，采集队携带当前载荷返程
+  rpc RecallGatherTeam(RecallGatherTeamRequest) returns (RecallGatherTeamResponse);
+  // 查询采集队状态，team_id 传 0 时返回该玩家全部采集队
+  rpc GetGatherState(GetGatherStateRequest) returns (GetGatherStateResponse);
+}
+
+// GatherState 采集队状态，采集调度的核心快照。
+message GatherState {
+  int64 team_id = 1;                    // 采集队ID，全局唯一，由雪花算法生成（规范8用int64）
+  int32 status = 2;                     // 采集状态：1=去程 2=采集中 3=返程
+  insectworld.common.Position tile = 3; // 目标地块坐标，返程中为最后一次采集的地块
+  int32 resource_type = 4;              // 采集资源类型，对应资源配置ID（规范8用int32）
+  int64 load = 5;                       // 当前载荷，已采集资源量（规范8用int64）
+  int64 capacity = 6;                   // 载荷上限，由采集队兵种与科技加成决定
+  int64 start_time = 7;                 // 当前阶段开始时间戳（毫秒）
+  int64 end_time = 8;                   // 当前阶段结束时间戳（毫秒），0表示进行中无固定结束
+}
+
+// AssignGatherTeamRequest 分配采集队请求
+message AssignGatherTeamRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 team_id = 2;                           // 采集队ID，由玩家集结/编队产生
+  insectworld.common.Position target = 3;      // 目标地块坐标，需通过世界服务校验资源地块
+  int32 resource_type = 4;                     // 期望采集的资源类型，服务端与地块实际资源比对
+}
+
+// AssignGatherTeamResponse 分配采集队响应
+message AssignGatherTeamResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  GatherState state = 2;                        // 分配后的采集队状态
+}
+
+// RecallGatherTeamRequest 召回采集队请求
+message RecallGatherTeamRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 team_id = 2;                            // 采集队ID
+}
+
+// RecallGatherTeamResponse 召回采集队响应
+message RecallGatherTeamResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  GatherState state = 2;                        // 召回后的采集队状态，状态置为返程
+}
+
+// GetGatherStateRequest 查询采集队状态请求
+message GetGatherStateRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 team_id = 2;                            // 采集队ID，0表示查询该玩家全部采集队
+}
+
+// GetGatherStateResponse 查询采集队状态响应
+message GetGatherStateResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  repeated GatherState states = 2;              // 采集队状态列表
+}
+
+// GatherStartedEvent 采集开始事件，采集队到达地块开始采集时发布。
+// 主题命名 event.gathering.started，订阅方用于记录采集行为与地块占用。
+message GatherStartedEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 team_id = 2;                      // 采集队ID
+  int64 player_id = 3;                    // 归属玩家ID
+  insectworld.common.Position tile = 4;   // 采集地块坐标
+  int32 resource_type = 5;                // 采集资源类型
+}
+
+// GatherCompletedEvent 采集完成事件，采集队载荷满载或采集时间到后返回。
+// 主题命名 event.gathering.completed，订阅方用于发放采集资源到玩家背包/仓库。
+message GatherCompletedEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 team_id = 2;                      // 采集队ID
+  int64 player_id = 3;                    // 归属玩家ID
+  insectworld.common.Position tile = 4;   // 采集地块坐标
+  int64 gathered_amount = 5;              // 本次采集获得的资源量
+}
+
+// GatherRecalledEvent 采集召回事件，玩家主动召回采集队时发布。
+// 主题命名 event.gathering.recalled，订阅方用于结算召回时的部分载荷。
+message GatherRecalledEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 team_id = 2;                      // 采集队ID
+  int64 player_id = 3;                    // 归属玩家ID
+  int64 recalled_at = 4;                  // 召回时间戳（毫秒）
+  int64 load = 5;                         // 召回时携带的载荷量
+}
+
+// TileOccupiedEvent 地块被占事件，目标地块已被其他采集队/建筑占用时发布。
+// 主题命名 event.gathering.tile_occupied，采集分配失败时通知客户端改派。
+message TileOccupiedEvent {
+  insectworld.event.DomainEvent base = 1;       // 基础事件信息
+  int64 team_id = 2;                            // 尝试分配的采集队ID
+  int64 player_id = 3;                          // 发起分配的玩家ID
+  insectworld.common.Position tile = 4;         // 被占用的地块坐标
+  int64 occupier_team_id = 5;                   // 占用该地块的采集队ID，0表示被建筑占用
+}

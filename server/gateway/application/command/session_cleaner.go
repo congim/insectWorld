@@ -10,9 +10,9 @@ import (
 
 	"insectworld/server/shared/pkg/eventbus"
 
+	domainconfig "insectworld/server/gateway/domain/config"
 	domainevent "insectworld/server/gateway/domain/event"
 	domainsession "insectworld/server/gateway/domain/session"
-	"insectworld/server/gateway/infrastructure/config"
 )
 
 // 会话超时清理单次批量上限，spec 4.1 性能5要求单次周期处理不少于10000个。
@@ -25,7 +25,7 @@ const sessionCleanerBatchSize = 10000
 type SessionTimeoutCleaner struct {
 	sessionRepo domainsession.SessionRepository // 会话仓储
 	eventBus    eventbus.EventBus               // 事件总线
-	cfg         config.AuthConfig               // 认证配置
+	cfg         domainconfig.AuthConfig         // 认证配置
 	logger      *zap.Logger                     // 结构化日志
 }
 
@@ -33,7 +33,7 @@ type SessionTimeoutCleaner struct {
 func NewSessionTimeoutCleaner(
 	sessionRepo domainsession.SessionRepository,
 	eventBus eventbus.EventBus,
-	cfg config.AuthConfig,
+	cfg domainconfig.AuthConfig,
 	logger *zap.Logger,
 ) *SessionTimeoutCleaner {
 	return &SessionTimeoutCleaner{

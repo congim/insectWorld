@@ -1,4 +1,3 @@
-
 // Package command social服务application写侧，编排alliance聚合根的成员变更。
 // handler模式与world/application/command对齐（注入仓储+outbox+logger）。
 package command
@@ -28,8 +27,8 @@ type AddMemberCommand struct {
 // AddMemberHandler 添加联盟成员命令处理器。
 type AddMemberHandler struct {
 	allianceRepo alliance.AllianceRepository // Alliance聚合根仓储接口
-	outbox       Outbox                       // 领域事件Outbox接口
-	logger       *zap.Logger                  // 结构化日志器（规范7）
+	outbox       Outbox                      // 领域事件Outbox接口
+	logger       *zap.Logger                 // 结构化日志器（规范7）
 }
 
 // NewAddMemberHandler 创建添加成员命令处理器实例。

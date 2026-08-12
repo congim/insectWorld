@@ -13,6 +13,7 @@ import (
 
 	"insectworld/server/gateway/application/command"
 	"insectworld/server/gateway/application/query"
+	domainconfig "insectworld/server/gateway/domain/config"
 	domainsecurity "insectworld/server/gateway/domain/security"
 	authaccount "insectworld/server/gateway/infrastructure/auth/account"
 	authsecurity "insectworld/server/gateway/infrastructure/auth/security"
@@ -48,7 +49,7 @@ type GatewayDeps struct {
 	SessionCleaner *command.SessionTimeoutCleaner
 	ConnManager    *websocket.ConnectionManager
 	AuditLogger    *auditinfra.AuditLoggerImpl
-	AuthCfg        config.AuthConfig
+	AuthCfg        domainconfig.AuthConfig
 }
 
 // bootstrap 组装Gateway服务全部依赖注入。
@@ -107,7 +108,7 @@ func bootstrap(ctx context.Context, startupCfg GatewayStartupConfig, logger *zap
 	logoutCmd := command.NewLogoutCommand(tokenSigner, tokenBlacklist, sessionRepo, eventBus, auditLogger, logger)
 	heartbeatCmd := command.NewHeartbeatCommand(tokenSigner, sessionRepo, logger)
 	authQuery := query.NewAuthenticateQuery(tokenSigner, tokenBlacklist, sessionRepo, logger)
-	banCmd := command.NewBanCommand(accountRepo, sessionRepo, tokenBlacklist, eventBus, auditLogger, connManager, logger)
+	banCmd := command.NewBanCommand(accountRepo, sessionRepo, tokenBlacklist, eventBus, auditLogger, connManager, authCfg, logger)
 	unbanCmd := command.NewUnbanCommand(accountRepo, auditLogger, logger)
 	sessionCleaner := command.NewSessionTimeoutCleaner(sessionRepo, eventBus, authCfg, logger)
 

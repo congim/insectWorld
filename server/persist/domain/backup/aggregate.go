@@ -12,18 +12,18 @@ import (
 // 备份类型枚举常量。
 // 取值映射：1=全量备份 2=增量备份 3=日志备份
 const (
-	BackupTypeFull    = 1 // 全量备份，mysqldump导出全部数据
+	BackupTypeFull        = 1 // 全量备份，mysqldump导出全部数据
 	BackupTypeIncremental = 2 // 增量备份，基于binlog的增量数据备份
-	BackupTypeLog     = 3 // 日志备份，binlog日志文件备份
+	BackupTypeLog         = 3 // 日志备份，binlog日志文件备份
 )
 
 // 备份任务状态枚举常量。
 // 取值映射：1=待执行 2=执行中 3=已完成 4=失败
 const (
-	BackupStatusPending  = 1 // 待执行状态
-	BackupStatusRunning  = 2 // 执行中状态
+	BackupStatusPending   = 1 // 待执行状态
+	BackupStatusRunning   = 2 // 执行中状态
 	BackupStatusCompleted = 3 // 已完成状态
-	BackupStatusFailed   = 4 // 失败状态
+	BackupStatusFailed    = 4 // 失败状态
 )
 
 // BackupTask 备份任务，描述单次备份操作的配置与状态。
@@ -48,8 +48,28 @@ func NewBackupTask(backupID int64, backupType int, createTime int64) *BackupTask
 // BackupID 返回备份任务ID。
 func (b *BackupTask) BackupID() int64 { return b.backupID }
 
+// BackupType 返回备份类型。
+func (b *BackupTask) BackupType() int { return b.backupType }
+
 // Status 返回任务状态。
 func (b *BackupTask) Status() int { return b.status }
+
+// CreateTime 返回创建时间戳。
+func (b *BackupTask) CreateTime() int64 { return b.createTime }
+
+// RestorePoint 返回恢复点时间戳。
+func (b *BackupTask) RestorePoint() int64 { return b.restorePoint }
+
+// RestoreBackupTask 从持久化恢复备份任务聚合根，用于Repository Find方法重建聚合根状态。
+func RestoreBackupTask(backupID int64, backupType, status int, createTime, restorePoint int64) *BackupTask {
+	return &BackupTask{
+		backupID:     backupID,
+		backupType:   backupType,
+		status:       status,
+		createTime:   createTime,
+		restorePoint: restorePoint,
+	}
+}
 
 // Start 执行备份任务。
 func (b *BackupTask) Start() error {

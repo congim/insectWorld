@@ -6,6 +6,7 @@
 package session
 
 import (
+	"encoding/json"
 	"fmt"
 
 	gatewayerr "insectworld/server/gateway/domain/errors"
@@ -89,5 +90,45 @@ func (s *OnlineSession) UpdateHeartbeat(now int64) error {
 // 已待销毁状态再次调用为幂等，不报错。
 func (s *OnlineSession) Destroy() error {
 	s.status = SessionStatusDestroying
+	return nil
+}
+
+// sessionJSON 会话JSON序列化中间结构体，字段导出供json.Marshal使用。
+type sessionJSON struct {
+	PlayerID      int64  `json:"player_id"`      // 玩家ID
+	ConnID        string `json:"conn_id"`        // 连接ID
+	LoginTime     int64  `json:"login_time"`     // 登录时间戳
+	HeartbeatTime int64  `json:"heartbeat_time"` // 心跳时间戳
+	Status        int    `json:"status"`         // 会话状态
+	TokenVersion  int    `json:"token_version"`  // 令牌版本号
+	DeviceID      string `json:"device_id"`      // 设备ID
+}
+
+// MarshalJSON 实现自定义JSON序列化，导出私有字段。
+func (s OnlineSession) MarshalJSON() ([]byte, error) {
+	return json.Marshal(sessionJSON{
+		PlayerID:      s.playerID,
+		ConnID:        s.connID,
+		LoginTime:     s.loginTime,
+		HeartbeatTime: s.heartbeatTime,
+		Status:        s.status,
+		TokenVersion:  s.tokenVersion,
+		DeviceID:      s.deviceID,
+	})
+}
+
+// UnmarshalJSON 实现自定义JSON反序列化，恢复私有字段。
+func (s *OnlineSession) UnmarshalJSON(data []byte) error {
+	var sj sessionJSON
+	if err := json.Unmarshal(data, &sj); err != nil {
+		return err
+	}
+	s.playerID = sj.PlayerID
+	s.connID = sj.ConnID
+	s.loginTime = sj.LoginTime
+	s.heartbeatTime = sj.HeartbeatTime
+	s.status = sj.Status
+	s.tokenVersion = sj.TokenVersion
+	s.deviceID = sj.DeviceID
 	return nil
 }

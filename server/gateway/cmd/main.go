@@ -3,7 +3,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+
 	"net"
 	"os"
 	"os/signal"
@@ -22,6 +22,7 @@ import (
 // Gateway服务监听端口与默认配置常量（规范1就近归属）。
 const (
 	GatewayServicePort = ":50056" // Gateway服务gRPC监听端口
+	WSPort             = ":50057" // WebSocket认证服务监听端口
 	DefaultWorkerID    = 1        // 默认雪花算法机器ID
 )
 
@@ -51,14 +52,18 @@ func main() {
 	}
 
 	wsAuthHandler := wshandler.NewWSAuthHandler(
-		deps.RegisterCmd, deps.LoginCmd, deps.LogoutCmd, deps.HeartbeatCmd, logger,
+		deps.RegisterCmd, deps.LoginCmd, deps.LogoutCmd, deps.HeartbeatCmd, deps.AuthQuery, logger,
 	)
 	authInterceptor := interceptor.NewAuthInterceptor(deps.AuthQuery, logger)
-	_ = wsAuthHandler
 	_ = authInterceptor
 
+	wsServer := wshandler.NewWSServer(wsAuthHandler, logger)
+	if err := wsServer.Start(ctx, WSPort); err != nil {
+		logger.Fatal("WebSocket服务启动失败", zap.Error(err))
+	}
+
 	playerAdminAdapter := gatewaygrpc.NewPlayerAdminAdapter(deps.BanCmd, deps.UnbanCmd, "system")
-	adminHandler := gatewaygrpc.NewAdminHandler(nil, nil, nil, nil, nil, playerAdminAdapter, nil, logger)
+	adminHandler := gatewaygrpc.NewAdminHandler(nil, nil, playerAdminAdapter, logger)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -90,5 +95,5 @@ func main() {
 	grpcServer.GracefulStop()
 	deps.AuditLogger.Close()
 	wg.Wait()
-	fmt.Println("Gateway服务已关闭")
+	logger.Info("Gateway服务已关闭")
 }

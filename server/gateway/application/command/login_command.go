@@ -13,14 +13,14 @@ import (
 
 	domainaccount "insectworld/server/gateway/domain/account"
 	domainaudit "insectworld/server/gateway/domain/audit"
+	domainconfig "insectworld/server/gateway/domain/config"
 	gatewayerr "insectworld/server/gateway/domain/errors"
 	domainevent "insectworld/server/gateway/domain/event"
 	domainratelimit "insectworld/server/gateway/domain/ratelimit"
 	domainsecurity "insectworld/server/gateway/domain/security"
 	domainsession "insectworld/server/gateway/domain/session"
 	domaintoken "insectworld/server/gateway/domain/token"
-	"insectworld/server/gateway/infrastructure/config"
-	"insectworld/server/gateway/infrastructure/websocket"
+	domainwebsocket "insectworld/server/gateway/domain/websocket"
 )
 
 // 限流维度常量（规范1就近归属）。
@@ -46,8 +46,8 @@ type LoginCommand struct {
 	tokenSigner domaintoken.TokenSigner             // 令牌签发器
 	eventBus    eventbus.EventBus                   // 事件总线
 	auditLogger domainaudit.AuditLogger             // 审计日志
-	connManager *websocket.ConnectionManager        // 连接管理器
-	cfg         config.AuthConfig                   // 认证配置
+	connManager domainwebsocket.ConnectionManager   // 连接管理器
+	cfg         domainconfig.AuthConfig             // 认证配置
 	logger      *zap.Logger                         // 结构化日志
 }
 
@@ -61,8 +61,8 @@ func NewLoginCommand(
 	tokenSigner domaintoken.TokenSigner,
 	eventBus eventbus.EventBus,
 	auditLogger domainaudit.AuditLogger,
-	connManager *websocket.ConnectionManager,
-	cfg config.AuthConfig,
+	connManager domainwebsocket.ConnectionManager,
+	cfg domainconfig.AuthConfig,
 	logger *zap.Logger,
 ) *LoginCommand {
 	return &LoginCommand{

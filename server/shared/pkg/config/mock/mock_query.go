@@ -4,6 +4,7 @@ package mock
 
 import (
 	"context"
+	"fmt"
 
 	"insectworld/server/shared/pkg/config"
 )
@@ -32,6 +33,7 @@ type MockConfigQuery struct {
 	SeasonScoringRules    []config.ScoringRuleConfig               // 赛季积分规则mock
 	EventTypes            []config.EventTypeConfig                 // 事件类型配置mock
 	MaxRounds             map[string]int                           // 战斗最大轮数mock
+	Versioned             *config.VersionedConfigStore             // 版本化配置存储mock，GetWithVersion/HasWithVersion/PinVersion/UnpinVersion读写（ADR-004 3.1）
 }
 
 // NewMockConfigQuery 创建mock实例，初始化所有map。
@@ -165,4 +167,38 @@ func (m *MockConfigQuery) GetEventTypes(ctx context.Context) []config.EventTypeC
 // GetMaxRounds 查询战斗类型最大轮数的mock实现。
 func (m *MockConfigQuery) GetMaxRounds(ctx context.Context, combatType string) int {
 	return m.MaxRounds[combatType]
+}
+
+// GetWithVersion 版本化查询配置项的mock实现，委托VersionedConfigStore（ADR-004 3.1）。
+// 未注入Versioned时视为版本不可用，返回ErrConfigVersionGone。
+func (m *MockConfigQuery) GetWithVersion(ctx context.Context, extPointID string, key string, configVersion int64) (any, error) {
+	if m.Versioned == nil {
+		return nil, fmt.Errorf("配置版本 %d 不可用: %w", configVersion, config.ErrConfigVersionGone)
+	}
+	return m.Versioned.Get(configVersion, extPointID, key)
+}
+
+// HasWithVersion 版本化存在性判断的mock实现，委托VersionedConfigStore（ADR-004 3.2）。
+// 未注入Versioned时视为版本不可用，返回ErrConfigVersionGone。
+func (m *MockConfigQuery) HasWithVersion(ctx context.Context, extPointID string, key string, configVersion int64) (bool, error) {
+	if m.Versioned == nil {
+		return false, fmt.Errorf("配置版本 %d 不可用: %w", configVersion, config.ErrConfigVersionGone)
+	}
+	return m.Versioned.Has(configVersion, extPointID, key)
+}
+
+// PinVersion 锁定配置版本的mock实现，委托VersionedConfigStore（ADR-004 3.1版本保留）。
+func (m *MockConfigQuery) PinVersion(ctx context.Context, configVersion int64) error {
+	if m.Versioned == nil {
+		return fmt.Errorf("配置版本 %d 不可用: %w", configVersion, config.ErrConfigVersionGone)
+	}
+	return m.Versioned.Pin(configVersion)
+}
+
+// UnpinVersion 释放配置版本的mock实现，委托VersionedConfigStore（ADR-004 3.4双向回滚）。
+func (m *MockConfigQuery) UnpinVersion(ctx context.Context, configVersion int64) error {
+	if m.Versioned == nil {
+		return fmt.Errorf("配置版本 %d 不可用: %w", configVersion, config.ErrConfigVersionGone)
+	}
+	return m.Versioned.Unpin(configVersion)
 }

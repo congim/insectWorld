@@ -266,14 +266,14 @@
 | **为什么是骨头** | 伏击效果、围城效果、赛季阶段效果、事件响应、成就触发……全是"触发-动作"，统一走规则引擎 |
 | **肉怎么挂** | 见下方挂载点 |
 | **框架默认行为** | 事件触发→条件检查→执行动作→冷却计时 |
-| **约束** | 规则不能循环触发（框架做深度检测，超过阈值则报错）；动作类型不可配置（需要新类型必须扩展框架代码） |
+| **约束** | 规则不能循环触发（框架做深度检测，超过阈值则报错）；动作类型可扩展（内置7个直接可用，新类型由题材层init()注册，框架代码零改动，见ADR-002/ADR-003） |
 
 **挂载点：**
 
 | 挂载点 | 契约概要 |
 |--------|---------|
 | 规则定义 | 触发事件名、条件表达式、动作类型、动作参数、冷却时间、是否一次性 |
-| 动作类型 | 框架提供固定动作类型列表：apply_buff / remove_buff / modify_resource / spawn_entity / trigger_combat / send_notify / change_terrain。需要新动作类型时扩展框架 |
+| 动作类型 | 内置动作类型（7个）：apply_buff / remove_buff / modify_resource / spawn_entity / trigger_combat / send_notify / change_terrain。新动作类型=题材层实现RuleActionHandler并经注册表init()注册，框架代码零改动（见ADR-002/ADR-003） |
 | 条件表达式 | 简单比较表达式（支持>/>=/</<=/==/!=/in/and/or），框架提供求值器 |
 
 ---
@@ -782,9 +782,9 @@
 |------|------|
 | **挂载点ID** | `rule.define` |
 | **所属骨头** | 规则系统 |
-| **输入契约** | 数组，每个元素包含：<br>`id`：string，全局唯一<br>`trigger_event`：string，触发事件名（如"on_combat_start"/"on_season_phase_change"/"on_entity_created"）<br>`condition`：string，条件表达式，可选（不提供则无条件触发）<br>`action_type`：枚举{apply_buff, remove_buff, modify_resource, spawn_entity, trigger_combat, send_notify, change_terrain}，动作类型<br>`action_params`：map，动作参数（取决于action_type）<br>`cooldown`：float，冷却时间（秒），>=0<br>`one_time`：bool，是否一次性规则，默认false<br>`priority`：int，优先级（同事件多规则时按优先级排序） |
+| **输入契约** | 数组，每个元素包含：<br>`id`：string，全局唯一<br>`trigger_event`：string，触发事件名（如"on_combat_start"/"on_season_phase_change"/"on_entity_created"）<br>`condition`：string，条件表达式，可选（不提供则无条件触发）<br>`action_type`：string，动作类型；内置7个：apply_buff / remove_buff / modify_resource / spawn_entity / trigger_combat / send_notify / change_terrain，题材层可注册新类型（见3.8.2，运行时以注册表校验为准）<br>`action_params`：map，动作参数（取决于action_type）<br>`cooldown`：float，冷却时间（秒），>=0<br>`one_time`：bool，是否一次性规则，默认false<br>`priority`：int，优先级（同事件多规则时按优先级排序） |
 | **输出契约** | 框架保证：事件触发时检查condition→执行action→进入cooldown；one_time规则执行后自动移除；循环深度超过阈值报错 |
-| **校验规则** | ①id全局唯一 ②action_type在框架支持的列表中 ③cooldown>=0 ④condition表达式语法合法 ⑤框架检测循环触发（A触发B，B触发A） |
+| **校验规则** | ①id全局唯一 ②action_type在动作注册表中已注册（内置7个+题材层注册，启动全量校验，未注册拒绝启动） ③cooldown>=0 ④condition表达式语法合法 ⑤框架检测循环触发（A触发B，B触发A） |
 | **默认值** | 无规则 |
 | **示例** | `{"id":"ambush_bonus","trigger_event":"on_combat_start","condition":"attacker.has_buff(ambush) AND terrain == forest","action_type":"apply_buff","action_params":{"buff_id":"buff_ambush_bonus","target":"attacker"},"cooldown":0,"one_time":false,"priority":10}` |
 
@@ -794,10 +794,10 @@
 |------|------|
 | **挂载点ID** | `rule.action_type` |
 | **所属骨头** | 规则系统 |
-| **输入契约** | **不可配置**。框架提供以下固定动作类型：<br>• `apply_buff`：挂载Buff，params={buff_id, target}<br>• `remove_buff`：移除Buff，params={buff_id, target}或{source_tag, target}<br>• `modify_resource`：修改资源，params={resource_id, amount, target}<br>• `spawn_entity`：生成实体，params={template_id, position, owner}<br>• `trigger_combat`：触发战斗，params={attacker_id, defender_id}<br>• `send_notify`：发送通知，params={msg_id, target, params}<br>• `change_terrain`：改变地形，params={position, terrain_id} |
+| **输入契约** | **内置7个，注册表可扩展**。框架内置以下动作类型（新类型=题材层实现RuleActionHandler并经注册表init()注册，见ADR-002/ADR-003）：<br>• `apply_buff`：挂载Buff，params={buff_id, target}<br>• `remove_buff`：移除Buff，params={buff_id, target}或{source_tag, target}<br>• `modify_resource`：修改资源，params={resource_id, amount, target}<br>• `spawn_entity`：生成实体，params={template_id, position, owner}<br>• `trigger_combat`：触发战斗，params={attacker_id, defender_id}<br>• `send_notify`：发送通知，params={msg_id, target, params}<br>• `change_terrain`：改变地形，params={position, terrain_id} |
 | **输出契约** | 框架保证：每种动作类型按定义的params执行；params校验不通过则跳过该动作并记录错误日志 |
-| **校验规则** | action_type必须是框架支持的类型之一；需要新动作类型必须扩展框架代码 |
-| **默认值** | 即上述7种 |
+| **校验规则** | action_type必须在动作注册表中已注册（内置7个+题材层注册的新类型）；新类型=题材层init()注册，框架代码零改动；启动全量校验，未注册动作拒绝启动 |
+| **默认值** | 即上述7种内置动作（注册表初始内容） |
 | **示例** | `{"action_type":"modify_resource","action_params":{"resource_id":"gold","amount":100,"target":"attacker_owner"}}` |
 
 #### 3.8.3 条件表达式契约

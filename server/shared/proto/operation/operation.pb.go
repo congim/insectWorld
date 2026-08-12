@@ -700,7 +700,7 @@ const file_proto_operation_operation_proto_rawDesc = "" +
 	"\n" +
 	"GetRanking\x12(.insectworld.operation.GetRankingRequest\x1a&.insectworld.operation.RankingResponse\x12m\n" +
 	"\x10GetSeasonHistory\x12+.insectworld.operation.SeasonHistoryRequest\x1a,.insectworld.operation.SeasonHistoryResponse\x12k\n" +
-	"\x10TriggerGameEvent\x12*.insectworld.operation.TriggerEventRequest\x1a+.insectworld.operation.TriggerEventResponseB)Z'insectworld/server/shared/proto/operation;operationpbb\x06proto3"
+	"\x10TriggerGameEvent\x12*.insectworld.operation.TriggerEventRequest\x1a+.insectworld.operation.TriggerEventResponseB)Z'insectworld/proto/operation;operationpbb\x06proto3"
 
 var (
 	file_proto_operation_operation_proto_rawDescOnce sync.Once

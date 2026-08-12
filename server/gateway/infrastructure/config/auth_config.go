@@ -1,6 +1,7 @@
 // Package config Gateway用户认证配置加载与热更。
 //
 // infrastructure层配置适配，从Config服务加载AuthConfig并在热更时回调刷新。
+// AuthConfig值对象定义在domain/config层，本包负责加载与热更逻辑。
 // 配置项覆盖spec 5.1-5.5全部可调阈值，加载失败时降级为默认值并记录Warn日志。
 package config
 
@@ -9,60 +10,21 @@ import (
 	"sync"
 
 	"go.uber.org/zap"
+
+	domainconfig "insectworld/server/gateway/domain/config"
 )
-
-// AuthConfig 用户认证配置，覆盖注册/登录/登出/心跳/鉴权全部可调阈值。
-//
-// 所有数值字段用整型（规范8），时间相关字段用int64毫秒。
-// TokenSigningKey为敏感字段，不得出现在任何日志（规范7脱敏）。
-type AuthConfig struct {
-	UsernameMinLength      int    // 用户名最小长度，默认4
-	UsernameMaxLength      int    // 用户名最大长度，默认20
-	PasswordMinLength      int    // 密码最小长度，默认8
-	PasswordMaxLength      int    // 密码最大长度，默认32
-	SessionTimeoutMs       int64  // 会话超时时间，毫秒级，默认300000（5分钟）
-	SessionTTLMs           int64  // 会话TTL，毫秒级，与SessionTimeoutMs对齐
-	LoginFailMaxCount      int    // 登录失败最大次数，默认5
-	LoginLockDurationMs    int64  // 登录锁定时长，毫秒级，默认900000（15分钟）
-	RegisterRateLimitPerIP int    // 每IP注册频率限制，默认5次/窗口
-	LoginRateLimitPerIP    int    // 每IP登录频率限制，默认10次/窗口
-	LoginRateLimitPerAcc   int    // 每账号登录频率限制，默认10次/窗口
-	SingleLoginEnabled     bool   // 单点登录开关，true=同账号新登录踢旧会话下线
-	TokenVersion           int    // 令牌版本号，默认1
-	TokenSigningKey        string // 令牌签名密钥，从安全配置加载，不入日志（规范7脱敏）
-}
-
-// DefaultAuthConfig 返回默认认证配置，配置加载失败时降级使用。
-func DefaultAuthConfig() AuthConfig {
-	return AuthConfig{
-		UsernameMinLength:      4,
-		UsernameMaxLength:      20,
-		PasswordMinLength:      8,
-		PasswordMaxLength:      32,
-		SessionTimeoutMs:       300000,
-		SessionTTLMs:           300000,
-		LoginFailMaxCount:      5,
-		LoginLockDurationMs:    900000,
-		RegisterRateLimitPerIP: 5,
-		LoginRateLimitPerIP:    10,
-		LoginRateLimitPerAcc:   10,
-		SingleLoginEnabled:     true,
-		TokenVersion:           1,
-		TokenSigningKey:        "",
-	}
-}
 
 // AuthConfigLoader 认证配置加载器，从Config服务加载并支持热更回调。
 type AuthConfigLoader struct {
-	mu     sync.RWMutex // 读写锁，保护配置并发访问
-	cfg    AuthConfig   // 当前生效的认证配置
-	logger *zap.Logger  // 结构化日志
+	mu     sync.RWMutex            // 读写锁，保护配置并发访问
+	cfg    domainconfig.AuthConfig // 当前生效的认证配置
+	logger *zap.Logger             // 结构化日志
 }
 
 // NewAuthConfigLoader 创建认证配置加载器实例，初始使用默认配置。
 func NewAuthConfigLoader(logger *zap.Logger) *AuthConfigLoader {
 	return &AuthConfigLoader{
-		cfg:    DefaultAuthConfig(),
+		cfg:    domainconfig.DefaultAuthConfig(),
 		logger: logger,
 	}
 }
@@ -75,7 +37,7 @@ func (l *AuthConfigLoader) Load(ctx context.Context, rawCfg map[string]any) erro
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	newCfg := DefaultAuthConfig()
+	newCfg := domainconfig.DefaultAuthConfig()
 	if rawCfg == nil {
 		l.logger.Warn("认证配置加载为空，降级使用默认配置")
 		l.cfg = newCfg
@@ -140,7 +102,7 @@ func (l *AuthConfigLoader) Load(ctx context.Context, rawCfg map[string]any) erro
 }
 
 // Get 获取当前生效的认证配置（返回值拷贝，避免外部修改）。
-func (l *AuthConfigLoader) Get() AuthConfig {
+func (l *AuthConfigLoader) Get() domainconfig.AuthConfig {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	return l.cfg

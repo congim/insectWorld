@@ -11,7 +11,12 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
+	domainwebsocket "insectworld/server/gateway/domain/websocket"
 )
+
+// 编译期接口断言，确保ConnectionManager实现domain层ConnectionManager接口（规范3 DDD依赖方向）。
+var _ domainwebsocket.ConnectionManager = (*ConnectionManager)(nil)
 
 // ConnectionManager WebSocket连接管理器，维护在线玩家的WebSocket连接池。
 type ConnectionManager struct {

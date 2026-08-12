@@ -3,7 +3,7 @@ package session
 
 import (
 	"context"
-	"fmt"
+
 	"sync"
 	"time"
 
@@ -80,34 +80,5 @@ func (m *SessionRepoMemory) FindExpired(ctx context.Context, thresholdTime int64
 	return expired, nil
 }
 
-// CleanupExpired 清理过期会话，保留现有session.Store语义兼容已有调用方。
-//
-// 返回清理的会话数。
-func (m *SessionRepoMemory) CleanupExpired() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	now := time.Now()
-	count := 0
-	for id, sess := range m.sessions {
-		if time.Duration(now.UnixMilli()-sess.HeartbeatTime())*time.Millisecond > m.ttl {
-			delete(m.sessions, id)
-			count++
-		}
-	}
-	return count
-}
-
-// Count 返回当前会话数，用于监控与测试。
-func (m *SessionRepoMemory) Count() int {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return len(m.sessions)
-}
-
 // 确保 SessionRepoMemory 实现 SessionRepository 接口（编译期检查）。
 var _ domainsession.SessionRepository = (*SessionRepoMemory)(nil)
-
-// formatSessionKey 格式化会话Redis key，供日志调试使用。
-func formatSessionKey(playerID int64) string {
-	return fmt.Sprintf("session:%d", playerID)
-}

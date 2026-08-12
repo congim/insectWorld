@@ -483,7 +483,7 @@ const file_proto_config_config_proto_rawDesc = "" +
 	"\rConfigService\x12e\n" +
 	"\x10SubmitConfigPack\x12'.insectworld.config.SubmitConfigRequest\x1a(.insectworld.config.SubmitConfigResponse\x12[\n" +
 	"\x0eRollbackConfig\x12#.insectworld.config.RollbackRequest\x1a$.insectworld.config.RollbackResponse\x12p\n" +
-	"\x17GetConfigVersionHistory\x12).insectworld.config.VersionHistoryRequest\x1a*.insectworld.config.VersionHistoryResponseB#Z!insectworld/server/shared/proto/config;configpbb\x06proto3"
+	"\x17GetConfigVersionHistory\x12).insectworld.config.VersionHistoryRequest\x1a*.insectworld.config.VersionHistoryResponseB#Z!insectworld/proto/config;configpbb\x06proto3"
 
 var (
 	file_proto_config_config_proto_rawDescOnce sync.Once

@@ -4,8 +4,9 @@
 // 方法对应 domain 层 AuditActionCreate/Publish/Rollback/Delete 枚举，
 // 不引入新业务功能（不过度设计，规范4）。
 // 状态流转见 design.md 2.1.3.2：
-//   Created -> Published -> RolledBack -> Published（允许重新发布）
-//   Created/Published/RolledBack -> Deleted（终态）
+//
+//	Created -> Published -> RolledBack -> Published（允许重新发布）
+//	Created/Published/RolledBack -> Deleted（终态）
 //
 // domain 层零外部依赖（规范3），仅 import context 与本服务 domain/errors。
 package version

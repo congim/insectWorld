@@ -14,9 +14,10 @@ import (
 // ConfigCompiler 配置编译器，将配置包编译为内部数据结构并注册到ExtensionRegistry。
 // 归属infrastructure层（规范3），实现domain层声明的配置编译接口。
 type ConfigCompiler struct {
-	registry  *ExtensionRegistry // 扩展点注册表
-	validator *Validator         // 配置校验器
-	logger    *zap.Logger        // 结构化日志器（规范7）
+	registry  *ExtensionRegistry    // 扩展点注册表
+	validator *Validator            // 配置校验器
+	versioned *VersionedConfigStore // 版本化配置存储，可选注入；非空时编译结果按版本写入供快照类业务查询（ADR-004 3.1）
+	logger    *zap.Logger           // 结构化日志器（规范7）
 }
 
 // NewConfigCompiler 创建配置编译器实例。
@@ -26,6 +27,12 @@ func NewConfigCompiler(registry *ExtensionRegistry, validator *Validator, logger
 		validator: validator,
 		logger:    logger,
 	}
+}
+
+// SetVersionedStore 注入版本化配置存储，注入后编译结果按版本写入该存储（ADR-004 3.1）。
+// store为nil时恢复不写入（旧行为，纯当前版本查询）。
+func (cc *ConfigCompiler) SetVersionedStore(store *VersionedConfigStore) {
+	cc.versioned = store
 }
 
 // CompileConfigPack 编译配置包，校验后注册到ExtensionRegistry。
@@ -88,6 +95,23 @@ func (cc *ConfigCompiler) compileFile(ctx context.Context, fileName string, cfg 
 		}
 	}
 
+	// 2.4 写入版本化配置存储（可选，未注入store时跳过；ADR-004 3.1版本保留机制）
+	if cc.versioned != nil {
+		if items, ok := cfg.(map[string]any); ok {
+			// 配置为键值结构（如map[string]any）时逐配置项写入，版本化查询可按配置项ID定位
+			for _, extPointID := range extPoints {
+				for k, v := range items {
+					cc.versioned.PutEntry(configVersion, extPointID, k, v)
+				}
+			}
+		} else {
+			// 配置无法拆分为条目时退化存储整个扩展点值
+			for _, extPointID := range extPoints {
+				cc.versioned.PutExtPoint(configVersion, extPointID, cfg)
+			}
+		}
+	}
+
 	cc.logger.Debug("配置文件编译完成",
 		zap.String("file_name", fileName),
 		zap.Int64("config_version", configVersion),
@@ -109,6 +133,8 @@ func configFileToExtPoints(fileName string) []string {
 		return []string{ExtPointMovementTypes, ExtPointMovementBlocking}
 	case "combat":
 		return []string{ExtPointCombatTypes, ExtPointCombatSkills, ExtPointCombatFormationEffects, ExtPointCombatLootRules}
+	case "units":
+		return []string{ExtPointUnitTypes}
 	case "formulas":
 		return []string{ExtPointDamageFormulas}
 	case "counter_matrix":

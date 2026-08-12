@@ -1,0 +1,123 @@
+// Building Service gRPC接口定义，提供建筑建造/升级/取消/加速相关操作。
+// 对应《通用SLG框架共性抽离方案_终版》P0-2 建筑升级骨头（#14）与《契约冻结草案》4.3 清单。
+// 契约冻结规则：本包为P3新增包 v1 冻结，字段编号不重用、消息只增不改、服务只加不改。
+syntax = "proto3";
+
+package insectworld.building;
+
+option go_package = "insectworld/proto/building;buildingpb";
+
+import "proto/common/common.proto";
+import "proto/event/domain_event.proto";
+
+// BuildingService 建筑服务gRPC接口，提供建造/升级状态机、升级队列、打断与加速操作。
+// 建筑数值/升级规则/前置依赖留配置层（buildings 配置），本契约只承载机制指令与状态回传。
+service BuildingService {
+  // 发起建造，校验地块可建造性与前置依赖后进入建造队列
+  rpc StartBuilding(StartBuildingRequest) returns (StartBuildingResponse);
+  // 升级建筑，校验等级上限与资源消耗后进入升级队列
+  rpc UpgradeBuilding(UpgradeBuildingRequest) returns (UpgradeBuildingResponse);
+  // 取消建造/升级，已消耗资源按配置比例返还
+  rpc CancelBuilding(CancelBuildingRequest) returns (CancelBuildingResponse);
+  // 加速建造/升级，消耗道具或资源立即完成当前任务
+  rpc AccelerateBuilding(AccelerateBuildingRequest) returns (AccelerateBuildingResponse);
+}
+
+// BuildingState 建筑状态，建筑的当前快照。
+message BuildingState {
+  int64 building_id = 1;                 // 建筑实例ID，全局唯一，由雪花算法生成（规范8用int64）
+  int32 building_type_id = 2;            // 建筑配置ID，对应buildings配置表（规范8用int32）
+  int32 level = 3;                       // 当前等级，1级起（规范8用int32）
+  insectworld.common.Position position = 4; // 建筑所在地图坐标
+  int32 status = 5;                      // 建筑状态：1=建造中 2=正常 3=升级中 4=已拆除
+}
+
+// BuildingUpgradeTask 建筑升级队列任务，升级/建造共用队列。
+message BuildingUpgradeTask {
+  int64 building_id = 1;       // 建筑实例ID
+  int32 building_type_id = 2;  // 建筑配置ID
+  int32 target_level = 3;      // 目标等级，建造任务为1
+  int32 queue_pos = 4;         // 队列位置，1为正在执行的任务
+  int64 start_time = 5;        // 任务开始时间戳（毫秒）
+  int64 end_time = 6;          // 任务结束时间戳（毫秒），0表示尚未排定
+  int32 status = 7;            // 任务状态：1=等待 2=进行中 3=已完成 4=已取消
+}
+
+// StartBuildingRequest 建造请求
+message StartBuildingRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int32 building_type_id = 2;                  // 建筑配置ID
+  insectworld.common.Position position = 3;    // 建造坐标，需通过世界服务校验可建造性
+}
+
+// StartBuildingResponse 建造响应
+message StartBuildingResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  BuildingUpgradeTask task = 2;                 // 已入队的建造任务
+}
+
+// UpgradeBuildingRequest 升级请求
+message UpgradeBuildingRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 building_id = 2;                        // 建筑实例ID
+}
+
+// UpgradeBuildingResponse 升级响应
+message UpgradeBuildingResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  BuildingUpgradeTask task = 2;                 // 已入队的升级任务
+}
+
+// CancelBuildingRequest 取消请求
+message CancelBuildingRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 building_id = 2;                        // 建筑实例ID
+}
+
+// CancelBuildingResponse 取消响应
+message CancelBuildingResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  BuildingState building = 2;                   // 取消后的建筑状态快照
+}
+
+// AccelerateBuildingRequest 加速请求
+message AccelerateBuildingRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 building_id = 2;                        // 建筑实例ID
+  int32 cost_type = 3;                          // 消耗类型：1=道具 2=资源 3=金币
+  int64 cost_amount = 4;                        // 消耗数量，服务端按剩余时间与配置单价校验
+}
+
+// AccelerateBuildingResponse 加速响应
+message AccelerateBuildingResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  BuildingUpgradeTask task = 2;                 // 加速后的任务，完成时任务状态为已完成
+}
+
+// BuildingConstructedEvent 建筑建造完成事件，建造任务完成后发布。
+// 主题命名 event.building.constructed，订阅方用于刷新地图实体与建筑功能开放。
+message BuildingConstructedEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 building_id = 2;                  // 建筑实例ID
+  int32 building_type_id = 3;             // 建筑配置ID
+  insectworld.common.Position position = 4; // 建筑坐标
+}
+
+// BuildingUpgradedEvent 建筑升级完成事件，升级任务完成后发布。
+// 主题命名 event.building.upgraded，订阅方用于刷新建筑等级与功能解锁。
+message BuildingUpgradedEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 building_id = 2;                  // 建筑实例ID
+  int32 building_type_id = 3;             // 建筑配置ID
+  int32 old_level = 4;                    // 升级前等级
+  int32 new_level = 5;                    // 升级后等级
+}
+
+// BuildingUpgradeCancelledEvent 建筑升级取消事件，取消建造/升级后发布。
+// 主题命名 event.building.upgrade_cancelled，订阅方用于退还占用的队列与部分资源。
+message BuildingUpgradeCancelledEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 building_id = 2;                  // 建筑实例ID
+  int32 building_type_id = 3;             // 建筑配置ID
+  int32 level = 4;                        // 取消时的建筑等级
+}

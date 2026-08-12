@@ -1,0 +1,131 @@
+// Inventory Service gRPC接口定义，提供背包道具查询/使用/堆叠拆分合并相关操作。
+// 对应《通用SLG框架共性抽离方案_终版》P0-4 背包/道具骨头（#16）与《契约冻结草案》4.3 清单。
+// 背包是邮件附件/商店商品/活动奖励的公共底层，item契约最先冻结。
+// 契约冻结规则：本包为P3新增包 v1 冻结，字段编号不重用、消息只增不改、服务只加不改。
+syntax = "proto3";
+
+package insectworld.inventory;
+
+option go_package = "insectworld/proto/inventory;inventorypb";
+
+import "proto/common/common.proto";
+import "proto/event/domain_event.proto";
+
+// InventoryService 背包服务gRPC接口，提供道具查询/使用/堆叠拆分合并操作。
+// 道具定义/堆叠上限/过期规则留配置层（items 配置），本契约只承载背包指令与状态回传。
+service InventoryService {
+  // 查询背包道具，分页返回
+  rpc GetInventory(GetInventoryRequest) returns (GetInventoryResponse);
+  // 使用道具，校验数量与使用条件后执行道具效果
+  rpc UseItem(UseItemRequest) returns (UseItemResponse);
+  // 拆分堆叠，将一叠道具按数量拆成两叠
+  rpc SplitStack(SplitStackRequest) returns (SplitStackResponse);
+  // 合并堆叠，将同道具配置的两叠道具合并
+  rpc MergeStack(MergeStackRequest) returns (MergeStackResponse);
+}
+
+// InventoryItem 背包道具堆叠，同一道具配置可存在多个堆叠实例。
+message InventoryItem {
+  int64 instance_id = 1;   // 堆叠实例ID，全局唯一，拆分/合并/使用按实例定位（规范8用int64）
+  int32 item_id = 2;       // 道具配置ID，对应items配置表（规范8用int32）
+  int64 stack_count = 3;   // 堆叠数量，受配置的堆叠上限约束（规范8用int64）
+  int64 expire_time = 4;   // 过期时间戳（毫秒），0表示永不过期
+  bool bound = 5;          // 是否绑定，绑定道具不可交易/不可丢弃
+}
+
+// GetInventoryRequest 查询背包请求
+message GetInventoryRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  insectworld.common.Pagination pagination = 2; // 分页参数
+}
+
+// GetInventoryResponse 查询背包响应
+message GetInventoryResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  repeated InventoryItem items = 2;             // 背包道具堆叠列表
+  insectworld.common.PaginationResult pagination = 3; // 分页结果
+}
+
+// UseItemRequest 使用道具请求
+message UseItemRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 instance_id = 2;                        // 堆叠实例ID
+  int64 use_count = 3;                          // 使用数量，必须小于等于当前堆叠数量
+}
+
+// UseItemResponse 使用道具响应
+message UseItemResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  InventoryItem item = 2;                       // 使用后的道具堆叠，数量为0时表示已消耗清空
+}
+
+// SplitStackRequest 拆分堆叠请求
+message SplitStackRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 instance_id = 2;                        // 源堆叠实例ID
+  int64 split_count = 3;                        // 拆分数量，拆出的新堆叠数量，须小于源堆叠数量
+}
+
+// SplitStackResponse 拆分堆叠响应
+message SplitStackResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  InventoryItem original = 2;                   // 拆分后的源堆叠
+  InventoryItem new_stack = 3;                  // 拆分产生的新堆叠
+}
+
+// MergeStackRequest 合并堆叠请求
+message MergeStackRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 from_instance_id = 2;                   // 被合并的源堆叠实例ID，合并后清空
+  int64 to_instance_id = 3;                     // 合并目标堆叠实例ID，须为同道具配置
+}
+
+// MergeStackResponse 合并堆叠响应
+message MergeStackResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  InventoryItem merged = 2;                     // 合并后的目标堆叠
+  int64 removed_instance_id = 3;                // 被合并清空的堆叠实例ID
+}
+
+// ItemAddedEvent 道具入包事件，获得道具后发布。
+// 主题命名 event.inventory.item_added，订阅方用于背包计数与红点提示。
+message ItemAddedEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 player_id = 2;                    // 获得道具的玩家ID
+  int64 instance_id = 3;                  // 堆叠实例ID
+  int32 item_id = 4;                      // 道具配置ID
+  int64 stack_count = 5;                  // 新增数量
+  int32 reason = 6;                       // 获得途径：1=掉落 2=奖励 3=购买 4=合成
+}
+
+// ItemUsedEvent 道具使用事件，道具被使用后发布。
+// 主题命名 event.inventory.item_used，订阅方用于道具消耗统计与效果结算。
+message ItemUsedEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 player_id = 2;                    // 使用道具的玩家ID
+  int64 instance_id = 3;                  // 堆叠实例ID
+  int32 item_id = 4;                      // 道具配置ID
+  int64 use_count = 5;                    // 使用数量
+}
+
+// ItemExpiredEvent 道具过期事件，到达过期时间的道具被系统清除后发布。
+// 主题命名 event.inventory.item_expired，订阅方用于过期清理补偿或统计。
+message ItemExpiredEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 player_id = 2;                    // 道具所属玩家ID
+  int64 instance_id = 3;                  // 堆叠实例ID
+  int32 item_id = 4;                      // 道具配置ID
+  int64 expired_count = 5;                // 过期清除的数量
+}
+
+// ItemStackChangedEvent 堆叠变更事件，拆分/合并/数量变化后发布。
+// 主题命名 event.inventory.stack_changed，订阅方用于背包界面增量刷新。
+message ItemStackChangedEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 player_id = 2;                    // 背包所属玩家ID
+  int64 instance_id = 3;                  // 发生变更的堆叠实例ID
+  int32 item_id = 4;                      // 道具配置ID
+  int64 old_count = 5;                    // 变更前数量
+  int64 new_count = 6;                    // 变更后数量
+  int32 change_type = 7;                  // 变更类型：1=拆分 2=合并 3=消耗
+}

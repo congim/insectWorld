@@ -3,12 +3,14 @@ module insectworld/server/config
 go 1.26
 
 require (
+	github.com/go-sql-driver/mysql v1.8.1
 	go.uber.org/zap v1.28.0
 	google.golang.org/grpc v1.83.0
 	insectworld/server/shared v0.0.0
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect

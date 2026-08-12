@@ -10,10 +10,10 @@ import (
 
 	domainaccount "insectworld/server/gateway/domain/account"
 	domainaudit "insectworld/server/gateway/domain/audit"
+	domainconfig "insectworld/server/gateway/domain/config"
 	gatewayerr "insectworld/server/gateway/domain/errors"
 	domainidgen "insectworld/server/gateway/domain/idgen"
 	domainratelimit "insectworld/server/gateway/domain/ratelimit"
-	"insectworld/server/gateway/infrastructure/config"
 )
 
 // 限流维度常量（规范1就近归属）。
@@ -31,7 +31,7 @@ type RegisterCommand struct {
 	idGenerator domainidgen.IDGenerator         // ID生成器
 	hasher      domainaccount.PasswordHasher    // 密码哈希器
 	auditLogger domainaudit.AuditLogger         // 审计日志
-	cfg         config.AuthConfig               // 认证配置
+	cfg         domainconfig.AuthConfig         // 认证配置
 	logger      *zap.Logger                     // 结构化日志
 }
 
@@ -42,7 +42,7 @@ func NewRegisterCommand(
 	idGenerator domainidgen.IDGenerator,
 	hasher domainaccount.PasswordHasher,
 	auditLogger domainaudit.AuditLogger,
-	cfg config.AuthConfig,
+	cfg domainconfig.AuthConfig,
 	logger *zap.Logger,
 ) *RegisterCommand {
 	return &RegisterCommand{

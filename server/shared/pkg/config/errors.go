@@ -25,6 +25,8 @@ const (
 	ErrCodeVersionConflict = 14008
 	// ErrCodeHotReloadInProgress 热更进行中，拒绝并发热更请求
 	ErrCodeHotReloadInProgress = 14009
+	// ErrCodeConfigVersionGone 配置版本不可用，版本化查询的版本已被清理或从未记录
+	ErrCodeConfigVersionGone = 14010
 )
 
 // ConfigError 配置模块错误，携带错误码便于业务层判断与统一错误处理。
@@ -58,6 +60,8 @@ var (
 	ErrVersionConflict = &ConfigError{ErrCodeVersionConflict, "配置版本冲突"}
 	// ErrHotReloadInProgress 热更进行中错误
 	ErrHotReloadInProgress = &ConfigError{ErrCodeHotReloadInProgress, "热更进行中"}
+	// ErrConfigVersionGone 配置版本不可用错误（ADR-004 3.1版本化查询）
+	ErrConfigVersionGone = &ConfigError{ErrCodeConfigVersionGone, "配置版本不可用"}
 )
 
 // ErrMsg 返回错误码对应的中文消息。
@@ -81,6 +85,8 @@ func ErrMsg(code int) string {
 		return ErrVersionConflict.Msg
 	case ErrCodeHotReloadInProgress:
 		return ErrHotReloadInProgress.Msg
+	case ErrCodeConfigVersionGone:
+		return ErrConfigVersionGone.Msg
 	default:
 		return "未知错误"
 	}

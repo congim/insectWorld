@@ -3,6 +3,7 @@ package account
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -134,6 +135,79 @@ func TestCredential(t *testing.T) {
 		cred.ZeroPassword()
 		assert.Equal(t, "", cred.Password())
 	})
+}
+
+// TestPlayerAccount_BanAgain 测试已封禁账号再次封禁，应更新封禁原因与过期时间。
+func TestPlayerAccount_BanAgain(t *testing.T) {
+	account := NewPlayerAccount(1001, "testuser", "hash", "salt", "127.0.0.1", 1700000000000)
+	// 第一次临时封禁
+	err := account.Ban("违规1", 1700000000000+3600000)
+	require.NoError(t, err)
+	assert.Equal(t, "违规1", account.BanReason())
+	assert.Equal(t, int64(1700000000000+3600000), account.BanExpireTime())
+
+	// 再次封禁，更新原因与过期时间
+	err = account.Ban("违规2更严重", 0)
+	require.NoError(t, err)
+	assert.Equal(t, AccountStatusBanned, account.Status())
+	assert.Equal(t, "违规2更严重", account.BanReason())
+	assert.Equal(t, int64(0), account.BanExpireTime())
+}
+
+// TestPlayerAccount_UnbanNotBanned 测试未封禁账号直接解封，状态保持正常。
+func TestPlayerAccount_UnbanNotBanned(t *testing.T) {
+	account := NewPlayerAccount(1001, "testuser", "hash", "salt", "127.0.0.1", 1700000000000)
+	// 未封禁直接解封，应无错误且状态保持正常
+	err := account.Unban()
+	require.NoError(t, err)
+	assert.Equal(t, AccountStatusNormal, account.Status())
+	assert.Equal(t, "", account.BanReason())
+	assert.Equal(t, int64(0), account.BanExpireTime())
+}
+
+// TestPlayerAccount_VerifyPasswordHashError 测试密码校验时哈希器返回错误的分支。
+func TestPlayerAccount_VerifyPasswordHashError(t *testing.T) {
+	account := NewPlayerAccount(1001, "testuser", "hash", "salt", "127.0.0.1", 1700000000000)
+	hasher := &mockHasher{verifyErr: gatewayerr.ErrPasswordHashFailed}
+	match, err := account.VerifyPassword(context.Background(), "password", hasher)
+	require.Error(t, err)
+	assert.False(t, match)
+	assert.True(t, errors.Is(err, gatewayerr.ErrPasswordHashFailed))
+}
+
+// TestPlayerAccount_StatusTransitions 测试账号状态机完整流转路径。
+func TestPlayerAccount_StatusTransitions(t *testing.T) {
+	t.Run("正常→封禁→正常→封禁", func(t *testing.T) {
+		account := NewPlayerAccount(1001, "testuser", "hash", "salt", "127.0.0.1", 1700000000000)
+		assert.Equal(t, AccountStatusNormal, account.Status())
+
+		require.NoError(t, account.Ban("违规", 0))
+		assert.Equal(t, AccountStatusBanned, account.Status())
+		assert.True(t, account.IsBanned(1700000000000))
+
+		require.NoError(t, account.Unban())
+		assert.Equal(t, AccountStatusNormal, account.Status())
+		assert.False(t, account.IsBanned(1700000000000))
+
+		require.NoError(t, account.Ban("再违规", 1700000000000+3600000))
+		assert.Equal(t, AccountStatusBanned, account.Status())
+		assert.True(t, account.IsBanned(1700000000000+1800000))
+	})
+}
+
+// TestNewPlayerAccount_DefaultFields 测试新建账号默认字段值。
+func TestNewPlayerAccount_DefaultFields(t *testing.T) {
+	account := NewPlayerAccount(9999, "newuser", "hashval", "saltval", "192.168.1.1", 1700000005000)
+	assert.Equal(t, int64(9999), account.PlayerID())
+	assert.Equal(t, "newuser", account.Username())
+	assert.Equal(t, "hashval", account.PasswordHash())
+	assert.Equal(t, "saltval", account.Salt())
+	assert.Equal(t, "192.168.1.1", account.RegisterIP())
+	assert.Equal(t, int64(1700000005000), account.RegisterTime())
+	// 默认状态为正常，无封禁信息
+	assert.Equal(t, AccountStatusNormal, account.Status())
+	assert.Equal(t, "", account.BanReason())
+	assert.Equal(t, int64(0), account.BanExpireTime())
 }
 
 // 确保mockHasher实现PasswordHasher接口（编译期检查）。

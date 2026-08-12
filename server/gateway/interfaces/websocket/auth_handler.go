@@ -7,19 +7,23 @@ package websocket
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"go.uber.org/zap"
 
 	"insectworld/server/gateway/application/command"
+	"insectworld/server/gateway/application/query"
+	gatewayerr "insectworld/server/gateway/domain/errors"
 )
 
 // WebSocket认证消息类型常量（规范1就近归属）。
 const (
-	MsgTypeRegister  = "register"  // 注册消息
-	MsgTypeLogin     = "login"     // 登录消息
-	MsgTypeLogout    = "logout"    // 登出消息
-	MsgTypeHeartbeat = "heartbeat" // 心跳消息
+	MsgTypeRegister     = "register"     // 注册消息
+	MsgTypeLogin        = "login"        // 登录消息
+	MsgTypeLogout       = "logout"       // 登出消息
+	MsgTypeHeartbeat    = "heartbeat"    // 心跳消息
+	MsgTypeAuthenticate = "authenticate" // 鉴权消息
 )
 
 // AuthMessage WebSocket认证消息统一格式。
@@ -49,6 +53,7 @@ type WSAuthHandler struct {
 	loginCmd     *command.LoginCommand     // 登录命令
 	logoutCmd    *command.LogoutCommand    // 登出命令
 	heartbeatCmd *command.HeartbeatCommand // 心跳命令
+	authQuery    *query.AuthenticateQuery  // 鉴权查询
 	logger       *zap.Logger               // 结构化日志
 }
 
@@ -58,6 +63,7 @@ func NewWSAuthHandler(
 	loginCmd *command.LoginCommand,
 	logoutCmd *command.LogoutCommand,
 	heartbeatCmd *command.HeartbeatCommand,
+	authQuery *query.AuthenticateQuery,
 	logger *zap.Logger,
 ) *WSAuthHandler {
 	return &WSAuthHandler{
@@ -65,6 +71,7 @@ func NewWSAuthHandler(
 		loginCmd:     loginCmd,
 		logoutCmd:    logoutCmd,
 		heartbeatCmd: heartbeatCmd,
+		authQuery:    authQuery,
 		logger:       logger,
 	}
 }
@@ -101,6 +108,8 @@ func (h *WSAuthHandler) HandleMessage(ctx context.Context, msg []byte, sourceIP 
 		resp = h.handleLogout(ctx, authMsg)
 	case MsgTypeHeartbeat:
 		resp = h.handleHeartbeat(ctx, authMsg)
+	case MsgTypeAuthenticate:
+		resp = h.handleAuthenticate(ctx, authMsg)
 	default:
 		resp = AuthResponse{
 			Type:      authMsg.Type,
@@ -198,20 +207,37 @@ func (h *WSAuthHandler) handleHeartbeat(ctx context.Context, msg AuthMessage) Au
 	return AuthResponse{Type: MsgTypeHeartbeat, Success: true}
 }
 
+// handleAuthenticate 处理鉴权消息。
+func (h *WSAuthHandler) handleAuthenticate(ctx context.Context, msg AuthMessage) AuthResponse {
+	playerID, err := h.authQuery.Handle(ctx, msg.Token)
+	if err != nil {
+		return AuthResponse{
+			Type:      MsgTypeAuthenticate,
+			Success:   false,
+			ErrorCode: extractErrCode(err),
+			ErrorMsg:  err.Error(),
+		}
+	}
+	return AuthResponse{
+		Type:     MsgTypeAuthenticate,
+		Success:  true,
+		PlayerID: playerID,
+	}
+}
+
 // encodeResponse 序列化响应消息。
 func (h *WSAuthHandler) encodeResponse(resp AuthResponse) ([]byte, error) {
 	return json.Marshal(resp)
 }
 
-// extractErrCode 从错误中提取错误码，非GatewayError返回0。
+// extractErrCode 从错误中提取错误码，通过类型断言解包GatewayError。
 func extractErrCode(err error) int {
 	if err == nil {
 		return 0
 	}
-	type codedError interface {
-		Error() string
+	var gwErr *gatewayerr.GatewayError
+	if errors.As(err, &gwErr) {
+		return gwErr.Code
 	}
-	// 简化处理：通过错误消息前缀提取错误码
-	// 实际使用时GatewayError已实现Error()方法返回"[code] msg"格式
 	return 0
 }

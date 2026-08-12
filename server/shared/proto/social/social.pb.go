@@ -623,7 +623,7 @@ const file_proto_social_social_proto_rawDesc = "" +
 	"\rGetPlayerInfo\x12(.insectworld.social.GetPlayerInfoRequest\x1a&.insectworld.social.PlayerInfoResponse\x12d\n" +
 	"\x12GetDiplomacyStatus\x12'.insectworld.social.GetDiplomacyRequest\x1a%.insectworld.social.DiplomacyResponse\x12m\n" +
 	"\x17CheckAlliancePermission\x12*.insectworld.social.CheckPermissionRequest\x1a&.insectworld.social.PermissionResponse\x12l\n" +
-	"\x1aGetPlayerAllianceTerritory\x12'.insectworld.social.GetTerritoryRequest\x1a%.insectworld.social.TerritoryResponseB#Z!insectworld/server/shared/proto/social;socialpbb\x06proto3"
+	"\x1aGetPlayerAllianceTerritory\x12'.insectworld.social.GetTerritoryRequest\x1a%.insectworld.social.TerritoryResponseB#Z!insectworld/proto/social;socialpbb\x06proto3"
 
 var (
 	file_proto_social_social_proto_rawDescOnce sync.Once

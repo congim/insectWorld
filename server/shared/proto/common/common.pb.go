@@ -339,7 +339,7 @@ const file_proto_common_common_proto_rawDesc = "" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\"C\n" +
 	"\x10PaginationResult\x12\x14\n" +
 	"\x05total\x18\x01 \x01(\x03R\x05total\x12\x19\n" +
-	"\bhas_next\x18\x02 \x01(\bR\ahasNextB#Z!insectworld/server/shared/proto/common;commonpbb\x06proto3"
+	"\bhas_next\x18\x02 \x01(\bR\ahasNextB#Z!insectworld/proto/common;commonpbb\x06proto3"
 
 var (
 	file_proto_common_common_proto_rawDescOnce sync.Once

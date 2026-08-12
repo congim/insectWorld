@@ -1,0 +1,107 @@
+// Technology Service gRPC接口定义，提供个人科技研究/科技树/前置条件相关操作。
+// 对应《通用SLG框架共性抽离方案_终版》P0-6 个人科技骨头（#18）与《契约冻结草案》4.3 清单。
+// 与联盟科技互补，主城成长线；科技树/解锁条件留配置层（techs 配置）。
+// 契约冻结规则：本包为P3新增包 v1 冻结，字段编号不重用、消息只增不改、服务只加不改。
+syntax = "proto3";
+
+package insectworld.technology;
+
+option go_package = "insectworld/proto/technology;technologypb";
+
+import "proto/common/common.proto";
+import "proto/event/domain_event.proto";
+
+// TechnologyService 个人科技服务gRPC接口，提供研究队列、科技树与前置条件校验。
+service TechnologyService {
+  // 发起研究，校验前置条件与资源消耗后进入研究队列
+  rpc StartResearch(StartResearchRequest) returns (StartResearchResponse);
+  // 查询科技树，返回全部科技节点与当前研究任务
+  rpc GetTechTree(GetTechTreeRequest) returns (GetTechTreeResponse);
+  // 校验科技前置条件是否满足
+  rpc CheckPrerequisites(CheckPrerequisitesRequest) returns (CheckPrerequisitesResponse);
+}
+
+// ResearchTask 研究队列任务。
+message ResearchTask {
+  int64 task_id = 1;       // 研究任务ID，全局唯一，由雪花算法生成（规范8用int64）
+  int32 tech_id = 2;       // 科技配置ID，对应techs配置表（规范8用int32）
+  int32 target_level = 3;  // 研究目标等级，从1级开始
+  int64 start_time = 4;    // 任务开始时间戳（毫秒）
+  int64 end_time = 5;      // 任务结束时间戳（毫秒），0表示尚未排定
+  int32 status = 6;        // 任务状态：1=等待 2=研究中 3=已完成 4=已取消
+}
+
+// TechNode 科技树节点，科技与其等级状态的组合视图。
+message TechNode {
+  int32 tech_id = 1;            // 科技配置ID
+  int32 level = 2;              // 当前研究等级，0表示未研究
+  repeated int32 prerequisites = 3; // 前置科技配置ID列表，全部满足才可研究
+  int64 research_time = 4;      // 单级研究时长（毫秒），数值来自techs配置
+  int32 status = 5;             // 科技状态：1=未解锁 2=可研究 3=研究中 4=已研究
+}
+
+// StartResearchRequest 发起研究请求
+message StartResearchRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int32 tech_id = 2;                           // 科技配置ID
+}
+
+// StartResearchResponse 发起研究响应
+message StartResearchResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  ResearchTask task = 2;                        // 已入队的研究任务
+}
+
+// GetTechTreeRequest 查询科技树请求
+message GetTechTreeRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+}
+
+// GetTechTreeResponse 查询科技树响应
+message GetTechTreeResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  repeated TechNode nodes = 2;                  // 全部科技节点列表
+  repeated ResearchTask tasks = 3;              // 当前研究队列任务列表
+}
+
+// CheckPrerequisitesRequest 校验前置条件请求
+message CheckPrerequisitesRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int32 tech_id = 2;                            // 科技配置ID
+}
+
+// CheckPrerequisitesResponse 校验前置条件响应
+message CheckPrerequisitesResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  bool satisfied = 2;                           // 是否满足全部前置条件
+  repeated int32 missing_tech_ids = 3;          // 未满足的前置科技配置ID列表，satisfied为true时为空
+}
+
+// ResearchStartedEvent 研究开始事件，研究任务入队开始后发布。
+// 主题命名 event.technology.research_started，订阅方用于记录研究行为与队列占用。
+message ResearchStartedEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 player_id = 2;                    // 发起研究的玩家ID
+  int64 task_id = 3;                      // 研究任务ID
+  int32 tech_id = 4;                      // 科技配置ID
+  int32 target_level = 5;                 // 研究目标等级
+}
+
+// ResearchCompletedEvent 研究完成事件，研究任务完成后发布。
+// 主题命名 event.technology.research_completed，订阅方用于解锁科技效果与刷新科技树。
+message ResearchCompletedEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 player_id = 2;                    // 研究完成的玩家ID
+  int64 task_id = 3;                      // 研究任务ID
+  int32 tech_id = 4;                      // 科技配置ID
+  int32 level = 5;                        // 完成后的科技等级
+}
+
+// ResearchCancelledEvent 研究取消事件，取消研究任务后发布。
+// 主题命名 event.technology.research_cancelled，订阅方用于退还占用的队列与部分资源。
+message ResearchCancelledEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 player_id = 2;                    // 取消研究的玩家ID
+  int64 task_id = 3;                      // 研究任务ID
+  int32 tech_id = 4;                      // 科技配置ID
+}

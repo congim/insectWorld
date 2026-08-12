@@ -124,6 +124,7 @@ func TestConfigCompiler_CompileConfigPack(t *testing.T) {
 	require.NoError(t, registry.RegisterContract(ExtensionPointContract{ExtPointID: ExtPointTerrains}))
 	require.NoError(t, registry.RegisterContract(ExtensionPointContract{ExtPointID: ExtPointMapVisionRules}))
 	require.NoError(t, registry.RegisterContract(ExtensionPointContract{ExtPointID: ExtPointDamageFormulas}))
+	require.NoError(t, registry.RegisterContract(ExtensionPointContract{ExtPointID: ExtPointUnitTypes}))
 
 	configPack := map[string]any{
 		"game":      map[string]any{"vision": "quad"},
@@ -144,6 +145,7 @@ func TestConfigFileToExtPoints(t *testing.T) {
 		expected int
 	}{
 		{"terrains", 1},
+		{"units", 1},
 		{"combat", 4},
 		{"economy", 6},
 		{"season", 6},

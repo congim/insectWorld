@@ -22,6 +22,7 @@ const (
 	ExtPointMovementBlocking = "movement.movement_blocking_rules" // 移动阻挡规则扩展点ID，对应movement.json的阻挡规则
 	// 战斗配置扩展点
 	ExtPointCombatTypes            = "combat.combat_types"             // 战斗类型扩展点ID，对应combat.json的战斗类型定义
+	ExtPointUnitTypes              = "entity.entity_types"             // 实体兵种类型扩展点ID，对应units.json的兵种类型定义（ADR-004 3.1结算校验用）
 	ExtPointCombatSkills           = "combat.combat_skills"            // 战斗技能扩展点ID，对应combat.json的技能定义
 	ExtPointCombatFormationEffects = "combat.combat_formation_effects" // 战斗阵型效果扩展点ID，对应combat.json的阵型效果
 	ExtPointCombatLootRules        = "combat.combat_loot_rules"        // 战斗掉落规则扩展点ID，对应combat.json的掉落规则

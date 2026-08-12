@@ -1,0 +1,130 @@
+// Player Profile Service gRPC接口定义，提供玩家档案/注册登录/等级经验/昵称相关操作。
+// 对应《通用SLG框架共性抽离方案_终版》P0-1 玩家档案骨头（#13）与《契约冻结草案》4.3 清单。
+// 契约冻结规则：本包为P3新增包 v1 冻结，字段编号不重用、消息只增不改、服务只加不改。
+syntax = "proto3";
+
+package insectworld.player;
+
+option go_package = "insectworld/proto/player;playerpb";
+
+import "proto/common/common.proto";
+import "proto/event/domain_event.proto";
+
+// PlayerProfileService 玩家档案服务gRPC接口，提供注册/登录/资料/昵称/经验操作。
+// 玩家档案是全部玩法系统的owner基础，其他骨头（建筑/背包/科技）均以 player_id 归属。
+service PlayerProfileService {
+  // 注册新玩家账号，成功返回档案快照
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  // 玩家登录，返回会话令牌与档案快照
+  rpc Login(LoginRequest) returns (LoginResponse);
+  // 查询玩家档案，player_id 传 0 时使用请求头中的玩家ID
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+  // 修改玩家昵称，昵称需满足配置的合法字符与长度校验
+  rpc UpdateNickname(UpdateNicknameRequest) returns (UpdateNicknameResponse);
+  // 增加玩家经验值，经验达到升级阈值时自动升级并发布 PlayerLevelUpEvent
+  rpc AddExperience(AddExperienceRequest) returns (AddExperienceResponse);
+}
+
+// PlayerProfile 玩家档案，玩家在各玩法系统中的归属主数据。
+message PlayerProfile {
+  int64 player_id = 1;   // 玩家ID，全局唯一，由雪花算法生成（规范8用int64）
+  string nickname = 2;   // 玩家昵称，展示名，由玩家自行修改
+  int32 level = 3;       // 玩家等级，经验达到阈值后升级（规范8用int32）
+  int64 exp = 4;         // 当前经验值，累计经验值，升级不清零（规范8用int64）
+  int64 created_at = 5;  // 注册时间戳（毫秒），创建档案时写入
+  int32 avatar = 6;      // 头像配置ID，对应配置表，0表示使用默认头像（规范8用int32）
+}
+
+// RegisterRequest 注册请求
+message RegisterRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  string account = 2;                          // 玩家账号，登录唯一标识，字符串类型（账号非离散量，不走整型规范）
+  string password = 3;                         // 登录密码，服务端必须哈希存储，禁止明文落库与写日志
+  string nickname = 4;                         // 初始昵称，可为空时由服务端生成默认昵称
+  int32 avatar = 5;                            // 初始头像配置ID，0表示使用默认头像
+}
+
+// RegisterResponse 注册响应
+message RegisterResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  PlayerProfile profile = 2;                    // 注册成功后的玩家档案快照
+}
+
+// LoginRequest 登录请求
+message LoginRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  string account = 2;                          // 玩家账号
+  string password = 3;                         // 登录密码，传输层加密，服务端比对哈希
+}
+
+// LoginResponse 登录响应
+message LoginResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  string token = 2;                             // 会话令牌，后续请求通过鉴权中间件校验，令牌为不透明字符串由认证协议强制
+  PlayerProfile profile = 3;                    // 登录成功后的玩家档案快照
+}
+
+// GetProfileRequest 查询玩家档案请求
+message GetProfileRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 player_id = 2;                          // 玩家ID，0表示使用请求头中的玩家ID
+}
+
+// GetProfileResponse 查询玩家档案响应
+message GetProfileResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  PlayerProfile profile = 2;                    // 玩家档案
+}
+
+// UpdateNicknameRequest 修改昵称请求
+message UpdateNicknameRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  string new_nickname = 2;                      // 新昵称，需满足配置的长度与字符校验规则
+}
+
+// UpdateNicknameResponse 修改昵称响应
+message UpdateNicknameResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  PlayerProfile profile = 2;                    // 更新后的玩家档案快照
+}
+
+// AddExperienceRequest 增加经验请求
+message AddExperienceRequest {
+  insectworld.common.RequestHeader header = 1; // 请求头
+  int64 amount = 2;                             // 经验增量，正数增加，负数表示扣减（防刷校验由服务端完成）
+}
+
+// AddExperienceResponse 增加经验响应
+message AddExperienceResponse {
+  insectworld.common.ResponseHeader header = 1; // 响应头
+  PlayerProfile profile = 2;                    // 更新后的玩家档案快照
+  bool leveled_up = 3;                          // 本次是否触发升级，客户端据此播放升级表现
+  int32 new_level = 4;                          // 升级后的等级，未升级时为原等级
+}
+
+// PlayerRegisteredEvent 玩家注册事件，注册成功后发布。
+// 主题命名 event.player.registered，订阅方用于初始化玩家在各系统的档案。
+message PlayerRegisteredEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息，复用event包版本机制
+  int64 player_id = 2;                    // 新注册玩家ID
+  string account = 3;                     // 玩家账号
+  string nickname = 4;                    // 初始昵称
+}
+
+// PlayerLevelUpEvent 玩家升级事件，经验达到升级阈值后发布。
+// 主题命名 event.player.level_up，订阅方用于解锁玩法或刷新成长线。
+message PlayerLevelUpEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 player_id = 2;                    // 升级玩家ID
+  int32 old_level = 3;                    // 升级前等级
+  int32 new_level = 4;                    // 升级后等级
+}
+
+// PlayerProfileUpdatedEvent 玩家档案更新事件，昵称/头像等展示信息变更后发布。
+// 主题命名 event.player.profile_updated，订阅方用于同步社交展示数据。
+message PlayerProfileUpdatedEvent {
+  insectworld.event.DomainEvent base = 1; // 基础事件信息
+  int64 player_id = 2;                    // 档案被更新的玩家ID
+  string nickname = 3;                    // 更新后的昵称
+  int32 avatar = 4;                       // 更新后的头像配置ID
+}

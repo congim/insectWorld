@@ -12,19 +12,19 @@ import (
 // 归档任务状态枚举常量。
 // 取值映射：1=待执行 2=执行中 3=已完成 4=失败
 const (
-	ArchiveStatusPending  = 1 // 待执行状态，归档任务已创建尚未开始
-	ArchiveStatusRunning  = 2 // 执行中状态，归档任务正在执行
+	ArchiveStatusPending   = 1 // 待执行状态，归档任务已创建尚未开始
+	ArchiveStatusRunning   = 2 // 执行中状态，归档任务正在执行
 	ArchiveStatusCompleted = 3 // 已完成状态，归档任务执行成功
-	ArchiveStatusFailed   = 4 // 失败状态，归档任务执行失败
+	ArchiveStatusFailed    = 4 // 失败状态，归档任务执行失败
 )
 
 // 源数据类型枚举常量，指定归档的数据来源。
 // 取值映射：1=战报 2=赛季数据 3=玩家冷数据 4=日志数据
 const (
-	SourceTypeCombatReport  = 1 // 战报数据，从t_combat_report归档到MongoDB
-	SourceTypeSeasonData    = 2 // 赛季数据，从t_season_snapshot归档到冷库
-	SourceTypePlayerCold    = 3 // 玩家冷数据，从t_player归档到t_player_archive
-	SourceTypeLogData       = 4 // 日志数据，归档到冷存储
+	SourceTypeCombatReport = 1 // 战报数据，从t_combat_report归档到MongoDB
+	SourceTypeSeasonData   = 2 // 赛季数据，从t_season_snapshot归档到冷库
+	SourceTypePlayerCold   = 3 // 玩家冷数据，从t_player归档到t_player_archive
+	SourceTypeLogData      = 4 // 日志数据，归档到冷存储
 )
 
 // 目标存储类型枚举常量，指定归档数据的存储目标。
@@ -37,12 +37,12 @@ const (
 
 // ArchiveTask 归档任务，描述单次归档操作的配置与状态。
 type ArchiveTask struct {
-	taskID       int64  // 归档任务ID，全局唯一
-	ruleID       string // 归档规则ID，标识归档规则配置
-	sourceType   int    // 源数据类型：1=战报 2=赛季数据 3=玩家冷数据 4=日志数据
-	targetStorage int   // 目标存储：1=MongoDB 2=冷库MySQL 3=S3
-	status       int    // 任务状态：1=待执行 2=执行中 3=已完成 4=失败
-	archiveTime  int64  // 归档执行时间戳，毫秒级
+	taskID        int64  // 归档任务ID，全局唯一
+	ruleID        string // 归档规则ID，标识归档规则配置
+	sourceType    int    // 源数据类型：1=战报 2=赛季数据 3=玩家冷数据 4=日志数据
+	targetStorage int    // 目标存储：1=MongoDB 2=冷库MySQL 3=S3
+	status        int    // 任务状态：1=待执行 2=执行中 3=已完成 4=失败
+	archiveTime   int64  // 归档执行时间戳，毫秒级
 }
 
 // NewArchiveTask 创建归档任务实例。
@@ -59,8 +59,33 @@ func NewArchiveTask(taskID int64, ruleID string, sourceType, targetStorage int) 
 // TaskID 返回归档任务ID。
 func (a *ArchiveTask) TaskID() int64 { return a.taskID }
 
+// RuleID 返回归档规则ID。
+func (a *ArchiveTask) RuleID() string { return a.ruleID }
+
+// SourceType 返回源数据类型。
+func (a *ArchiveTask) SourceType() int { return a.sourceType }
+
+// TargetStorage 返回目标存储类型。
+func (a *ArchiveTask) TargetStorage() int { return a.targetStorage }
+
 // Status 返回任务状态。
 func (a *ArchiveTask) Status() int { return a.status }
+
+// ArchiveTime 返回归档执行时间戳。
+func (a *ArchiveTask) ArchiveTime() int64 { return a.archiveTime }
+
+// RestoreArchiveTask 从持久化恢复归档任务聚合根，用于Repository Find方法重建聚合根状态。
+// 与NewArchiveTask不同，Restore直接设置全部字段，不经过状态机转换。
+func RestoreArchiveTask(taskID int64, ruleID string, sourceType, targetStorage, status int, archiveTime int64) *ArchiveTask {
+	return &ArchiveTask{
+		taskID:        taskID,
+		ruleID:        ruleID,
+		sourceType:    sourceType,
+		targetStorage: targetStorage,
+		status:        status,
+		archiveTime:   archiveTime,
+	}
+}
 
 // Start 执行归档任务，状态从待执行变为执行中。
 func (a *ArchiveTask) Start() error {

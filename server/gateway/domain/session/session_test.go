@@ -70,5 +70,60 @@ func TestOnlineSession_Destroy(t *testing.T) {
 	})
 }
 
+// TestOnlineSession_JSONRoundTrip 测试会话JSON序列化/反序列化往返，保证Redis持久化字段完整。
+func TestOnlineSession_JSONRoundTrip(t *testing.T) {
+	t.Run("活跃会话往返", func(t *testing.T) {
+		original := NewOnlineSession(1001, "conn-001", 1700000000000, 3, "device-001")
+		data, err := original.MarshalJSON()
+		require.NoError(t, err)
+		assert.NotEmpty(t, data)
+
+		var restored OnlineSession
+		require.NoError(t, restored.UnmarshalJSON(data))
+		assert.Equal(t, int64(1001), restored.PlayerID())
+		assert.Equal(t, "conn-001", restored.ConnID())
+		assert.Equal(t, int64(1700000000000), restored.LoginTime())
+		assert.Equal(t, int64(1700000000000), restored.HeartbeatTime())
+		assert.Equal(t, SessionStatusActive, restored.Status())
+		assert.Equal(t, 3, restored.TokenVersion())
+		assert.Equal(t, "device-001", restored.DeviceID())
+	})
+
+	t.Run("待销毁会话往返", func(t *testing.T) {
+		original := NewOnlineSession(2002, "conn-002", 1700000001000, 5, "device-002")
+		_ = original.Destroy()
+		_ = original.UpdateHeartbeat(1700000001000) // 此处会失败但不影响序列化
+
+		data, err := original.MarshalJSON()
+		require.NoError(t, err)
+
+		var restored OnlineSession
+		require.NoError(t, restored.UnmarshalJSON(data))
+		assert.Equal(t, SessionStatusDestroying, restored.Status())
+		assert.Equal(t, int64(2002), restored.PlayerID())
+	})
+
+	t.Run("反序列化非法JSON返回错误", func(t *testing.T) {
+		var s OnlineSession
+		err := s.UnmarshalJSON([]byte("not-json"))
+		assert.Error(t, err)
+	})
+}
+
+// TestOnlineSession_JSONFieldNames 测试会话JSON字段名遵循蛇形命名，与Redis持久化契约对齐。
+func TestOnlineSession_JSONFieldNames(t *testing.T) {
+	sess := NewOnlineSession(1001, "conn-001", 1700000000000, 1, "device-001")
+	data, err := sess.MarshalJSON()
+	require.NoError(t, err)
+	jsonStr := string(data)
+	// 校验JSON字段名（snake_case契约）
+	assert.Contains(t, jsonStr, `"player_id"`)
+	assert.Contains(t, jsonStr, `"conn_id"`)
+	assert.Contains(t, jsonStr, `"login_time"`)
+	assert.Contains(t, jsonStr, `"heartbeat_time"`)
+	assert.Contains(t, jsonStr, `"token_version"`)
+	assert.Contains(t, jsonStr, `"device_id"`)
+}
+
 // 确保错误码变量可用（避免未使用import告警）。
 var _ = gatewayerr.ErrSessionNotFound
