@@ -1,0 +1,13 @@
+go 1.26
+
+use (
+	./shared
+	./world
+	./combat
+	./economy
+	./social
+	./operation
+	./gateway
+	./config
+	./persist
+)
