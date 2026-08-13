@@ -2,7 +2,7 @@
 //
 // infrastructure层技术适配，实现DDL迁移脚本的版本化管理与顺序执行。
 // 迁移脚本从server/shared/schema/migrations/目录读取，按V<3位版本号>排序执行，
-// 每个脚本事务包裹，成功后写入t_schema_migration记录（规范7日志埋点）。
+// MySQL DDL可能隐式提交，因此按语句顺序执行；迁移脚本自身必须可安全重试。
 package migration
 
 import (
@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 
 	"go.uber.org/zap"
@@ -94,28 +95,26 @@ func (e *Executor) DiscoverScripts() ([]MigrationFile, error) {
 	return files, nil
 }
 
-// Execute 执行单个迁移脚本，事务包裹。
+// Execute 按顺序执行单个迁移脚本中的全部语句。
+// MySQL DDL不承诺脚本级事务回滚，新增脚本必须采用可重入的扩展式迁移。
 func (e *Executor) Execute(ctx context.Context, file MigrationFile) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	tx, err := e.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("开启迁移事务失败: %w", err)
+	statements := splitStatements(file.Content)
+	if len(statements) == 0 {
+		return fmt.Errorf("迁移脚本不包含可执行语句，script=%s", file.ScriptName)
 	}
-	defer tx.Rollback()
-
-	if _, err := tx.ExecContext(ctx, file.Content); err != nil {
-		e.logger.Error("迁移脚本执行失败",
-			zap.Int64("version", file.Version),
-			zap.String("script", file.ScriptName),
-			zap.Error(err),
-		)
-		return fmt.Errorf("迁移脚本 %s 执行失败: %w", file.ScriptName, err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("提交迁移事务失败: %w", err)
+	for index, statement := range statements {
+		if _, err := e.db.ExecContext(ctx, statement); err != nil {
+			e.logger.Error("迁移脚本执行失败",
+				zap.Int64("version", file.Version),
+				zap.String("script", file.ScriptName),
+				zap.Int("statement_index", index),
+				zap.Error(err),
+			)
+			return fmt.Errorf("迁移脚本%s第%d条语句执行失败: %w", file.ScriptName, index+1, err)
+		}
 	}
 
 	e.logger.Info("迁移脚本执行成功",
@@ -123,6 +122,27 @@ func (e *Executor) Execute(ctx context.Context, file MigrationFile) error {
 		zap.String("script", file.ScriptName),
 	)
 	return nil
+}
+
+func splitStatements(content string) []string {
+	lines := strings.Split(content, "\n")
+	filtered := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "--") {
+			continue
+		}
+		filtered = append(filtered, line)
+	}
+	parts := strings.Split(strings.Join(filtered, "\n"), ";")
+	statements := make([]string, 0, len(parts))
+	for _, part := range parts {
+		statement := strings.TrimSpace(part)
+		if statement != "" {
+			statements = append(statements, statement)
+		}
+	}
+	return statements
 }
 
 // ExecutePending 执行所有未执行的迁移脚本。

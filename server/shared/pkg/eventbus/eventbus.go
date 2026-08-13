@@ -40,23 +40,26 @@ type EventBus interface {
 // Outbox投递状态枚举常量，表示Outbox记录的投递进度。
 // 取值映射：1=待投递 2=已投递 3=失败
 const (
-	OutboxStatusPending   = 1 // 待投递状态，事件已写入Outbox表但尚未成功投递到事件总线
-	OutboxStatusPublished = 2 // 已投递状态，事件已成功投递到事件总线
-	OutboxStatusFailed    = 3 // 失败状态，事件投递失败，需重试或人工介入
+	OutboxStatusPending    = 1 // 待投递状态，事件已写入Outbox表但尚未成功投递到事件总线
+	OutboxStatusPublished  = 2 // 已投递状态，事件已成功投递到事件总线
+	OutboxStatusFailed     = 3 // 失败状态，事件投递失败，需重试或人工介入
+	OutboxStatusProcessing = 4 // 投递中状态，超过租约时间可被其他实例重新领取
 )
 
 // OutboxRecord Outbox表记录，存储待投递的领域事件。
 // Outbox模式保证聚合根状态变更与事件发布的事务原子性：
 // 聚合根变更与Outbox记录写入同一事务，后台任务轮询Outbox表投递事件。
 type OutboxRecord struct {
-	EventID     string // 事件ID，全局唯一，与DomainEvent.EventID一致，用于幂等去重
-	AggregateID int64  // 聚合根ID，事件归属的聚合根，int64（规范8）
-	EventType   string // 事件类型，与DomainEvent.EventType一致
-	Payload     []byte // 事件负载，序列化后的事件具体数据
-	Status      int    // 投递状态：1=待投递 2=已投递 3=失败
-	RetryCount  int    // 重试次数，投递失败时递增，达到上限需告警
-	CreateTime  int64  // 记录创建时间戳，int64毫秒级Unix时间戳（规范8）
-	PublishTime int64  // 事件投递时间戳，int64毫秒级Unix时间戳，未投递时为0
+	EventID       string // 事件ID，全局唯一，与DomainEvent.EventID一致，用于幂等去重
+	AggregateID   int64  // 聚合根ID，事件归属的聚合根，int64（规范8）
+	EventType     string // 事件类型，与DomainEvent.EventType一致
+	Version       int    // 事件契约版本号，用于消费者兼容判断
+	Payload       []byte // 事件负载，序列化后的事件具体数据
+	Status        int    // 投递状态：1=待投递 2=已投递 3=失败 4=投递中
+	RetryCount    int    // 重试次数，投递失败时递增，达到上限需告警
+	CreateTime    int64  // 记录创建时间戳，int64毫秒级Unix时间戳（规范8）
+	PublishTime   int64  // 事件投递时间戳，int64毫秒级Unix时间戳，未投递时为0
+	AvailableTime int64  // 下次可领取时间戳；投递中时表示租约到期时间
 }
 
 // OutboxRepository Outbox仓储接口，提供Outbox记录的持久化与查询能力。
@@ -71,6 +74,13 @@ type OutboxRepository interface {
 	// GetPending 获取待投递的Outbox记录，按创建时间升序返回。
 	// limit: 返回记录数上限，避免单次拉取过多
 	GetPending(ctx context.Context, limit int) ([]OutboxRecord, error)
+
+	// ClaimPending 原子领取指定类型的可投递事件并设置租约，支持多实例并发轮询。
+	// eventTypes必须是当前进程已注册消费者的事件类型，禁止领取未知事件。
+	ClaimPending(ctx context.Context, nowMs int64, eventTypes []string, limit int, leaseUntilMs int64) ([]OutboxRecord, error)
+
+	// MarkFailed 标记投递失败、递增重试次数并设置下次可投递时间。
+	MarkFailed(ctx context.Context, eventID string, nextAttemptMs int64, failure string) error
 }
 
 // EventSerializer 事件序列化接口，提供事件负载的编解码能力。

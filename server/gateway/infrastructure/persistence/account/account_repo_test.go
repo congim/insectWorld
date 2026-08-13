@@ -12,6 +12,7 @@ import (
 
 	domainaccount "insectworld/server/gateway/domain/account"
 	gatewayerr "insectworld/server/gateway/domain/errors"
+	"insectworld/server/shared/pkg/eventbus"
 	"insectworld/server/shared/schema/tables"
 
 	"go.uber.org/zap"
@@ -24,6 +25,36 @@ func newAccountRepoMock(t *testing.T) (*sql.DB, sqlmock.Sqlmock, *AccountRepoMyS
 	logger := zap.NewNop()
 	repo := NewAccountRepoMySQL(db, logger)
 	return db, mock, repo
+}
+
+// TestAccountRepoMySQL_SaveRegistered 验证账号与注册Outbox在同一事务提交。
+func TestAccountRepoMySQL_SaveRegistered(t *testing.T) {
+	db, mock, repo := newAccountRepoMock(t)
+	defer db.Close()
+	account := domainaccount.NewPlayerAccount(1001, "testuser", "hash", "salt", "127.0.0.1", 1700000000000)
+	event := eventbus.DomainEvent{EventID: "auth.player_registered:1001", EventType: "auth.player_registered", AggregateID: 1001, Timestamp: 1700000000000, Payload: []byte(`{"PlayerID":1001}`)}
+	mock.ExpectBegin()
+	mock.ExpectExec("INSERT INTO " + tables.TPlayerAccount).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("INSERT INTO "+tables.TOutbox).WithArgs(event.EventID, event.AggregateID, event.EventType, event.Version, event.Payload, eventbus.OutboxStatusPending, event.Timestamp).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+	require.NoError(t, repo.SaveRegistered(context.Background(), account, event))
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+// TestAccountRepoMySQL_SaveRegisteredRollsBackOnOutboxFailure 验证Outbox写入失败时账号事务回滚。
+func TestAccountRepoMySQL_SaveRegisteredRollsBackOnOutboxFailure(t *testing.T) {
+	db, mock, repo := newAccountRepoMock(t)
+	defer db.Close()
+	account := domainaccount.NewPlayerAccount(1001, "testuser", "hash", "salt", "127.0.0.1", 1700000000000)
+	event := eventbus.DomainEvent{EventID: "auth.player_registered:1001", EventType: "auth.player_registered", AggregateID: 1001, Timestamp: 1700000000000, Payload: []byte(`{}`)}
+	mock.ExpectBegin()
+	mock.ExpectExec("INSERT INTO " + tables.TPlayerAccount).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("INSERT INTO " + tables.TOutbox).WillReturnError(errors.New("outbox unavailable"))
+	mock.ExpectRollback()
+	err := repo.SaveRegistered(context.Background(), account, event)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, gatewayerr.ErrAccountRepoUnavailable))
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 // TestAccountRepoMySQL_Save 测试账号保存（UPSERT）。

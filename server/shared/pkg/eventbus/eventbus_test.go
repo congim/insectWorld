@@ -12,6 +12,7 @@ func TestOutboxStatusConstants(t *testing.T) {
 	assert.Equal(t, 1, OutboxStatusPending)
 	assert.Equal(t, 2, OutboxStatusPublished)
 	assert.Equal(t, 3, OutboxStatusFailed)
+	assert.Equal(t, 4, OutboxStatusProcessing)
 }
 
 // TestDomainEventConstruction 测试领域事件结构构造。

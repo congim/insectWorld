@@ -19,21 +19,35 @@ const (
 
 // Building 是玩家建筑聚合根。
 type Building struct {
-	id         int64  // 建筑实例ID，全局唯一
-	playerID   int64  // 所属玩家ID
-	typeID     string // 建筑类型稳定ID，来源于游戏包
-	status     Status // 当前状态：1=建造中，2=可用
-	startedAt  int64  // 建造开始时间戳，Unix毫秒
-	completeAt int64  // 可完成时间戳，Unix毫秒
-	commandID  string // 建造命令幂等键
+	id            int64  // 建筑实例ID，全局唯一
+	playerID      int64  // 所属玩家ID
+	typeID        string // 建筑类型稳定ID，来源于游戏包
+	status        Status // 当前状态：1=建造中，2=可用
+	startedAt     int64  // 建造开始时间戳，Unix毫秒
+	completeAt    int64  // 可完成时间戳，Unix毫秒
+	configVersion string // 建造时绑定的游戏包语义版本
+	commandID     string // 建造命令幂等键
 }
 
 // NewConstruction 创建建造中的建筑聚合。
-func NewConstruction(id int64, playerID int64, typeID string, startedAt int64, completeAt int64, commandID string) (*Building, error) {
-	if id <= 0 || playerID <= 0 || typeID == "" || startedAt <= 0 || completeAt <= startedAt || commandID == "" {
+func NewConstruction(id int64, playerID int64, typeID string, startedAt int64, completeAt int64, configVersion string, commandID string) (*Building, error) {
+	if id <= 0 || playerID <= 0 || typeID == "" || startedAt <= 0 || completeAt <= startedAt || configVersion == "" || commandID == "" {
 		return nil, fmt.Errorf("建筑参数非法，buildingID=%d，playerID=%d: %w", id, playerID, gameerr.ErrInvalidCommand)
 	}
-	return &Building{id: id, playerID: playerID, typeID: typeID, status: StatusConstructing, startedAt: startedAt, completeAt: completeAt, commandID: commandID}, nil
+	return &Building{id: id, playerID: playerID, typeID: typeID, status: StatusConstructing, startedAt: startedAt, completeAt: completeAt, configVersion: configVersion, commandID: commandID}, nil
+}
+
+// RestoreBuilding 从可信持久化数据恢复建筑，并重新校验状态与时间不变量。
+func RestoreBuilding(id int64, playerID int64, typeID string, status Status, startedAt int64, completeAt int64, configVersion string, commandID string) (*Building, error) {
+	aggregate, err := NewConstruction(id, playerID, typeID, startedAt, completeAt, configVersion, commandID)
+	if err != nil {
+		return nil, err
+	}
+	if status != StatusConstructing && status != StatusOperational {
+		return nil, fmt.Errorf("持久化建筑状态非法，buildingID=%d，status=%d: %w", id, status, gameerr.ErrStateConflict)
+	}
+	aggregate.status = status
+	return aggregate, nil
 }
 
 // Complete 在达到完成时间后将建筑切换为可用状态；重复完成保持幂等。
@@ -65,6 +79,9 @@ func (b *Building) StartedAt() int64 { return b.startedAt }
 
 // CompleteAt 返回最早完成时间戳，单位毫秒。
 func (b *Building) CompleteAt() int64 { return b.completeAt }
+
+// ConfigVersion 返回建筑绑定的游戏包语义版本。
+func (b *Building) ConfigVersion() string { return b.configVersion }
 
 // CommandID 返回建造命令幂等键。
 func (b *Building) CommandID() string { return b.commandID }

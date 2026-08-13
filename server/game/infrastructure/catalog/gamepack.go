@@ -12,6 +12,7 @@ import (
 
 // GamePackReader 在进程生命周期内绑定一个不可变的已编译游戏包版本。
 type GamePackReader struct {
+	version          string                                      // 游戏包语义版本，绑定运行中聚合
 	defaultFactionID string                                      // 默认阵营稳定ID
 	factions         map[string]domaincatalog.FactionDefinition  // 阵营定义索引
 	buildings        map[string]domaincatalog.BuildingDefinition // 建筑定义索引
@@ -24,6 +25,7 @@ func NewGamePackReader(pack *gamepack.CompiledPack) (*GamePackReader, error) {
 		return nil, fmt.Errorf("游戏包不能为空: %w", gameerr.ErrInvalidCommand)
 	}
 	reader := &GamePackReader{
+		version:          pack.Manifest.Version,
 		defaultFactionID: pack.Game.DefaultFactionID,
 		factions:         make(map[string]domaincatalog.FactionDefinition, len(pack.Factions)),
 		buildings:        make(map[string]domaincatalog.BuildingDefinition, len(pack.Buildings)),
@@ -40,6 +42,9 @@ func NewGamePackReader(pack *gamepack.CompiledPack) (*GamePackReader, error) {
 	}
 	return reader, nil
 }
+
+// Version 返回当前读取器绑定的游戏包语义版本。
+func (r *GamePackReader) Version() string { return r.version }
 
 // DefaultFaction 返回当前游戏包默认阵营定义。
 func (r *GamePackReader) DefaultFaction(ctx context.Context) (domaincatalog.FactionDefinition, error) {

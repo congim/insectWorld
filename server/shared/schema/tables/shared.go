@@ -6,6 +6,4 @@ package tables
 const (
 	// TOutbox Outbox表，存储待投递的领域事件，各服务通过Outbox模式保证事件可靠投递
 	TOutbox = "t_outbox"
-	// TPlayerArchive 玩家归档表，存储玩家冷数据归档，由Persist服务管理
-	TPlayerArchive = "t_player_archive"
 )

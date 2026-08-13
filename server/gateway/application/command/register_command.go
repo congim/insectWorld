@@ -12,6 +12,7 @@ import (
 	domainaudit "insectworld/server/gateway/domain/audit"
 	domainconfig "insectworld/server/gateway/domain/config"
 	gatewayerr "insectworld/server/gateway/domain/errors"
+	domainevent "insectworld/server/gateway/domain/event"
 	domainidgen "insectworld/server/gateway/domain/idgen"
 	domainratelimit "insectworld/server/gateway/domain/ratelimit"
 )
@@ -26,18 +27,18 @@ const (
 // 编排顺序遵循spec 5.1.2：校验用户名格式→校验密码强度→校验注册频率→
 // 查询用户名唯一性→生成玩家ID→密码加盐哈希→构造聚合根→持久化→审计日志→返回。
 type RegisterCommand struct {
-	accountRepo domainaccount.AccountRepository // 账号仓储
-	rateLimiter domainratelimit.RateLimiter     // 限流器
-	idGenerator domainidgen.IDGenerator         // ID生成器
-	hasher      domainaccount.PasswordHasher    // 密码哈希器
-	auditLogger domainaudit.AuditLogger         // 审计日志
-	cfg         domainconfig.AuthConfig         // 认证配置
-	logger      *zap.Logger                     // 结构化日志
+	accountRepo domainaccount.RegistrationRepository // 注册事务仓储
+	rateLimiter domainratelimit.RateLimiter          // 限流器
+	idGenerator domainidgen.IDGenerator              // ID生成器
+	hasher      domainaccount.PasswordHasher         // 密码哈希器
+	auditLogger domainaudit.AuditLogger              // 审计日志
+	cfg         domainconfig.AuthConfig              // 认证配置
+	logger      *zap.Logger                          // 结构化日志
 }
 
 // NewRegisterCommand 创建注册命令实例。
 func NewRegisterCommand(
-	accountRepo domainaccount.AccountRepository,
+	accountRepo domainaccount.RegistrationRepository,
 	rateLimiter domainratelimit.RateLimiter,
 	idGenerator domainidgen.IDGenerator,
 	hasher domainaccount.PasswordHasher,
@@ -105,7 +106,11 @@ func (c *RegisterCommand) Handle(ctx context.Context, req RegisterRequest) (*Reg
 	}
 
 	account := domainaccount.NewPlayerAccount(playerID, credential.Username(), hash, salt, req.SourceIP, now)
-	if err := c.accountRepo.Save(ctx, account); err != nil {
+	registeredEvent, err := (domainevent.PlayerRegisteredEvent{PlayerID: playerID, Username: credential.Username(), RegisteredAt: now}).ToDomainEvent()
+	if err != nil {
+		return nil, fmt.Errorf("注册事件序列化失败: %w", gatewayerr.ErrRegisterInternalError)
+	}
+	if err := c.accountRepo.SaveRegistered(ctx, account, registeredEvent); err != nil {
 		return nil, fmt.Errorf("账号持久化失败: %w", gatewayerr.ErrRegisterInternalError)
 	}
 

@@ -100,6 +100,13 @@ interfaces → application → domain ← infrastructure
 
 ## 9. 测试与验证（MUST）
 
+### 本地 MySQL 开发基线
+
+- 本机集成测试默认连接 `127.0.0.1:3306`，账号 `root`，密码 `123456`，仅允许操作 `insect_world_test`。
+- 该账号只用于当前个人开发环境，禁止复制到共享、测试或生产部署配置，禁止写入业务日志。
+- 重建脚本只能删除以 `_test` 结尾的数据库；执行真实 MySQL 仓储测试前先运行 `scripts/reset_local_mysql.sh`。
+- 自动化环境可通过 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_USER`、`MYSQL_PASSWORD`、`MYSQL_TEST_DATABASE` 覆盖本地默认值。
+
 ### 测试层次
 
 - domain：状态机、不变量、边界值、确定性和并发规则；

@@ -1,7 +1,11 @@
 // Package account 玩家账号聚合根与凭证值对象，维护账号档案的一致性边界。
 package account
 
-import "context"
+import (
+	"context"
+
+	"insectworld/server/shared/pkg/eventbus"
+)
 
 // AccountRepository 账号仓储接口，domain层声明，infrastructure层实现MySQL适配（规范3 DDD）。
 //
@@ -22,4 +26,10 @@ type AccountRepository interface {
 
 	// ExistsByUsername 判断用户名是否已存在，返回true表示已占用。
 	ExistsByUsername(ctx context.Context, username string) (bool, error)
+}
+
+// RegistrationRepository 原子保存新账号与玩家注册Outbox事件。
+type RegistrationRepository interface {
+	AccountRepository
+	SaveRegistered(ctx context.Context, account *PlayerAccount, event eventbus.DomainEvent) error
 }

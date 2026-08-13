@@ -75,16 +75,16 @@ func TestInMemoryEventBus_MultipleSubscribers(t *testing.T) {
 	assert.Equal(t, 3, callCount, "三个订阅者均应被调用")
 }
 
-// TestInMemoryEventBus_NoSubscriber 测试发布无订阅者的事件不报错。
+// TestInMemoryEventBus_NoSubscriber 测试发布无订阅者的事件会报告失败。
 func TestInMemoryEventBus_NoSubscriber(t *testing.T) {
 	logger := zap.NewNop()
 	bus := NewInMemoryEventBus(logger)
 	evt := eventbus.DomainEvent{EventID: "evt-003", EventType: "no.subscriber"}
 	err := bus.Publish(context.Background(), evt)
-	require.NoError(t, err)
+	require.Error(t, err)
 }
 
-// TestInMemoryEventBus_HandlerError 测试订阅者返回错误时不阻塞其他订阅者。
+// TestInMemoryEventBus_HandlerError 测试订阅者返回错误时继续执行其他订阅者并向发布方报告失败。
 func TestInMemoryEventBus_HandlerError(t *testing.T) {
 	logger := zap.NewNop()
 	bus := NewInMemoryEventBus(logger)
@@ -106,8 +106,8 @@ func TestInMemoryEventBus_HandlerError(t *testing.T) {
 	require.NoError(t, bus.Subscribe(context.Background(), "err.event", successHandler))
 
 	evt := eventbus.DomainEvent{EventID: "evt-004", EventType: "err.event"}
-	// Publish应返回nil（订阅者错误不阻塞发布）
-	require.NoError(t, bus.Publish(context.Background(), evt))
+	err := bus.Publish(context.Background(), evt)
+	require.Error(t, err)
 
 	mu.Lock()
 	defer mu.Unlock()

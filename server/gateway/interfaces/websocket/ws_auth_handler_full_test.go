@@ -21,6 +21,7 @@ import (
 	gatewayerr "insectworld/server/gateway/domain/errors"
 	domainsecurity "insectworld/server/gateway/domain/security"
 	domaintoken "insectworld/server/gateway/domain/token"
+	"insectworld/server/shared/pkg/eventbus"
 
 	"go.uber.org/zap"
 
@@ -50,6 +51,11 @@ func (r *memAccountRepo) Save(ctx context.Context, account *domainaccount.Player
 	defer r.mu.Unlock()
 	r.accounts[account.PlayerID()] = account
 	return nil
+}
+
+// SaveRegistered 模拟账号与注册事件原子保存，内存测试复用账号保存行为。
+func (r *memAccountRepo) SaveRegistered(ctx context.Context, account *domainaccount.PlayerAccount, _ eventbus.DomainEvent) error {
+	return r.Save(ctx, account)
 }
 
 func (r *memAccountRepo) FindByID(ctx context.Context, playerID int64) (*domainaccount.PlayerAccount, error) {

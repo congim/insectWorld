@@ -74,7 +74,7 @@ func (s *Service) CreatePlayer(ctx context.Context, cmd CreatePlayerCommand) (*p
 		return nil, fmt.Errorf("按命令查询玩家失败，commandID=%s: %w", cmd.CommandID, findErr)
 	}
 
-	profile, err := player.NewProfile(cmd.PlayerID, faction.ID, cmd.Nickname, cmd.NowMs, cmd.CommandID)
+	profile, err := player.NewProfile(cmd.PlayerID, faction.ID, cmd.Nickname, cmd.NowMs, s.catalog.Version(), cmd.CommandID)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (s *Service) ConstructBuilding(ctx context.Context, cmd ConstructBuildingCo
 			return nil, fmt.Errorf("建造幂等键载荷冲突，commandID=%s: %w", cmd.CommandID, gameerr.ErrStateConflict)
 		}
 		return existing, nil
-	} else if !stderrors.Is(err, gameerr.ErrDefinitionNotFound) {
+	} else if !stderrors.Is(err, gameerr.ErrBuildingNotFound) {
 		return nil, fmt.Errorf("按命令查询建筑失败，commandID=%s: %w", cmd.CommandID, err)
 	}
 	profile, err := s.players.FindByPlayerID(ctx, cmd.PlayerID)
@@ -129,7 +129,7 @@ func (s *Service) ConstructBuilding(ctx context.Context, cmd ConstructBuildingCo
 	if err != nil {
 		return nil, err
 	}
-	aggregate, err := building.NewConstruction(s.ids.Next(), cmd.PlayerID, definition.ID, cmd.NowMs, completeAt, cmd.CommandID)
+	aggregate, err := building.NewConstruction(s.ids.Next(), cmd.PlayerID, definition.ID, cmd.NowMs, completeAt, s.catalog.Version(), cmd.CommandID)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +190,7 @@ func (s *Service) StartTraining(ctx context.Context, cmd StartTrainingCommand) (
 			return nil, fmt.Errorf("训练幂等键载荷冲突，commandID=%s: %w", cmd.CommandID, gameerr.ErrStateConflict)
 		}
 		return existing, nil
-	} else if !stderrors.Is(err, gameerr.ErrDefinitionNotFound) {
+	} else if !stderrors.Is(err, gameerr.ErrTrainingNotFound) {
 		return nil, fmt.Errorf("按命令查询训练任务失败，commandID=%s: %w", cmd.CommandID, err)
 	}
 	profile, err := s.players.FindByPlayerID(ctx, cmd.PlayerID)
@@ -203,6 +203,9 @@ func (s *Service) StartTraining(ctx context.Context, cmd StartTrainingCommand) (
 	}
 	if buildingAggregate.PlayerID() != cmd.PlayerID || buildingAggregate.Status() != building.StatusOperational {
 		return nil, fmt.Errorf("训练建筑不可用，buildingID=%d: %w", cmd.BuildingID, gameerr.ErrBuildingNotReady)
+	}
+	if buildingAggregate.ConfigVersion() != s.catalog.Version() || profile.ConfigVersion() != s.catalog.Version() {
+		return nil, fmt.Errorf("当前运行实例未装载聚合绑定的游戏包版本，buildingID=%d: %w", cmd.BuildingID, gameerr.ErrStateConflict)
 	}
 	buildingDefinition, err := s.catalog.Building(ctx, buildingAggregate.TypeID())
 	if err != nil {
@@ -230,7 +233,7 @@ func (s *Service) StartTraining(ctx context.Context, cmd StartTrainingCommand) (
 	if err != nil {
 		return nil, err
 	}
-	aggregate, err := training.NewTask(s.ids.Next(), cmd.PlayerID, cmd.BuildingID, unitDefinition.ID, cmd.Count, cmd.NowMs, completeAt, cmd.CommandID)
+	aggregate, err := training.NewTask(s.ids.Next(), cmd.PlayerID, cmd.BuildingID, unitDefinition.ID, cmd.Count, cmd.NowMs, completeAt, s.catalog.Version(), cmd.CommandID)
 	if err != nil {
 		return nil, err
 	}

@@ -14,7 +14,7 @@ import (
 // TestNewProfile 验证玩家档案初始化不变量和输入标准化。
 func TestNewProfile(t *testing.T) {
 	t.Parallel()
-	profile, err := NewProfile(7, "faction", "  玩家  ", 1000, "create-1")
+	profile, err := NewProfile(7, "faction", "  玩家  ", 1000, "0.1.0", "create-1")
 	require.NoError(t, err)
 	assert.Equal(t, int64(7), profile.PlayerID())
 	assert.Equal(t, "faction", profile.FactionID())
@@ -22,6 +22,7 @@ func TestNewProfile(t *testing.T) {
 	assert.Equal(t, int32(1), profile.Level())
 	assert.Zero(t, profile.Experience())
 	assert.Equal(t, int64(1000), profile.CreatedAt())
+	assert.Equal(t, "0.1.0", profile.ConfigVersion())
 	assert.Equal(t, "create-1", profile.CommandID())
 	assert.Equal(t, profile.PlayerID(), profile.Clone().PlayerID())
 }
@@ -46,9 +47,21 @@ func TestNewProfileRejectsInvalidInput(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := NewProfile(testCase.playerID, testCase.factionID, testCase.nickname, testCase.createdAt, testCase.commandID)
+			_, err := NewProfile(testCase.playerID, testCase.factionID, testCase.nickname, testCase.createdAt, "0.1.0", testCase.commandID)
 			require.Error(t, err)
 			assert.True(t, errors.Is(err, gameerr.ErrInvalidCommand))
 		})
 	}
+}
+
+// TestRestoreProfile 验证持久化恢复接受合法成长值并拒绝损坏数据。
+func TestRestoreProfile(t *testing.T) {
+	t.Parallel()
+	profile, err := RestoreProfile(1, "faction", "玩家", 3, 20, 1000, "0.1.0", "cmd")
+	require.NoError(t, err)
+	assert.Equal(t, int32(3), profile.Level())
+	assert.Equal(t, int64(20), profile.Experience())
+	_, err = RestoreProfile(1, "faction", "玩家", 0, 20, 1000, "0.1.0", "cmd")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, gameerr.ErrStateConflict))
 }

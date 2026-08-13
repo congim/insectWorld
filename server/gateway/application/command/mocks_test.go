@@ -11,7 +11,6 @@ import (
 	domainsession "insectworld/server/gateway/domain/session"
 	domaintoken "insectworld/server/gateway/domain/token"
 	domainwebsocket "insectworld/server/gateway/domain/websocket"
-
 	"insectworld/server/shared/pkg/eventbus"
 )
 
@@ -72,6 +71,11 @@ func (m *mockAccountRepo) Save(ctx context.Context, account *domainaccount.Playe
 	m.saveCallCount++
 	m.lastSavedAccount = account
 	return m.saveErr
+}
+
+// SaveRegistered 模拟账号与注册事件原子写入，测试中复用Save行为。
+func (m *mockAccountRepo) SaveRegistered(ctx context.Context, account *domainaccount.PlayerAccount, _ eventbus.DomainEvent) error {
+	return m.Save(ctx, account)
 }
 
 func (m *mockAccountRepo) FindByID(ctx context.Context, playerID int64) (*domainaccount.PlayerAccount, error) {

@@ -15,6 +15,7 @@ import (
 
 	domainaccount "insectworld/server/gateway/domain/account"
 	gatewayerr "insectworld/server/gateway/domain/errors"
+	"insectworld/server/shared/pkg/eventbus"
 	"insectworld/server/shared/schema/tables"
 )
 
@@ -22,6 +23,27 @@ import (
 type AccountRepoMySQL struct {
 	db     *sql.DB     // MySQL数据库连接
 	logger *zap.Logger // 结构化日志
+}
+
+// SaveRegistered 在一个MySQL事务内插入账号和玩家注册Outbox事件。
+func (r *AccountRepoMySQL) SaveRegistered(ctx context.Context, account *domainaccount.PlayerAccount, event eventbus.DomainEvent) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("开启注册事务失败: %w", gatewayerr.ErrAccountRepoUnavailable)
+	}
+	defer tx.Rollback()
+	accountQuery := fmt.Sprintf(`INSERT INTO %s (player_id, username, password_hash, salt, status, ban_reason, ban_expire_time, register_time, register_ip) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, tables.TPlayerAccount)
+	if _, err := tx.ExecContext(ctx, accountQuery, account.PlayerID(), account.Username(), account.PasswordHash(), account.Salt(), account.Status(), account.BanReason(), account.BanExpireTime(), account.RegisterTime(), account.RegisterIP()); err != nil {
+		return fmt.Errorf("注册账号持久化失败: %w", gatewayerr.ErrAccountRepoUnavailable)
+	}
+	outboxQuery := fmt.Sprintf(`INSERT INTO %s (event_id, aggregate_id, event_type, event_version, payload, status, retry_count, create_time, publish_time, available_time, last_error) VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0, 0, '')`, tables.TOutbox)
+	if _, err := tx.ExecContext(ctx, outboxQuery, event.EventID, event.AggregateID, event.EventType, event.Version, event.Payload, eventbus.OutboxStatusPending, event.Timestamp); err != nil {
+		return fmt.Errorf("注册Outbox持久化失败: %w", gatewayerr.ErrAccountRepoUnavailable)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("提交注册事务失败: %w", gatewayerr.ErrAccountRepoUnavailable)
+	}
+	return nil
 }
 
 // NewAccountRepoMySQL 创建MySQL账号仓储实例。

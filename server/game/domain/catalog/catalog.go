@@ -28,6 +28,7 @@ type UnitDefinition struct {
 
 // Reader 是只读配置端口，运行实例必须绑定同一个已编译游戏包版本。
 type Reader interface {
+	Version() string
 	DefaultFaction(ctx context.Context) (FactionDefinition, error)
 	Faction(ctx context.Context, factionID string) (FactionDefinition, error)
 	Building(ctx context.Context, buildingID string) (BuildingDefinition, error)

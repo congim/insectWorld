@@ -52,7 +52,7 @@ func (r *PlayerRepository) SaveIfAbsent(_ context.Context, profile *player.Profi
 	defer r.mu.Unlock()
 	if playerID, ok := r.byCommand[profile.CommandID()]; ok {
 		existing := r.byID[playerID]
-		if existing.PlayerID() != profile.PlayerID() || existing.FactionID() != profile.FactionID() || existing.Nickname() != profile.Nickname() {
+		if existing.PlayerID() != profile.PlayerID() || existing.FactionID() != profile.FactionID() || existing.Nickname() != profile.Nickname() || existing.ConfigVersion() != profile.ConfigVersion() {
 			return nil, false, fmt.Errorf("玩家创建命令载荷冲突，commandID=%s: %w", profile.CommandID(), gameerr.ErrStateConflict)
 		}
 		return existing.Clone(), false, nil
@@ -83,7 +83,7 @@ func (r *BuildingRepository) FindByID(_ context.Context, buildingID int64) (*bui
 	defer r.mu.RUnlock()
 	value, ok := r.byID[buildingID]
 	if !ok {
-		return nil, fmt.Errorf("建筑不存在，buildingID=%d: %w", buildingID, gameerr.ErrDefinitionNotFound)
+		return nil, fmt.Errorf("建筑不存在，buildingID=%d: %w", buildingID, gameerr.ErrBuildingNotFound)
 	}
 	return value.Clone(), nil
 }
@@ -94,7 +94,7 @@ func (r *BuildingRepository) FindByCommandID(ctx context.Context, commandID stri
 	id, ok := r.byCommand[commandID]
 	r.mu.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("建造命令不存在，commandID=%s: %w", commandID, gameerr.ErrDefinitionNotFound)
+		return nil, fmt.Errorf("建造命令不存在，commandID=%s: %w", commandID, gameerr.ErrBuildingNotFound)
 	}
 	return r.FindByID(ctx, id)
 }
@@ -105,7 +105,7 @@ func (r *BuildingRepository) SaveIfAbsent(_ context.Context, aggregate *building
 	defer r.mu.Unlock()
 	if id, ok := r.byCommand[aggregate.CommandID()]; ok {
 		existing := r.byID[id]
-		if existing.PlayerID() != aggregate.PlayerID() || existing.TypeID() != aggregate.TypeID() {
+		if existing.PlayerID() != aggregate.PlayerID() || existing.TypeID() != aggregate.TypeID() || existing.ConfigVersion() != aggregate.ConfigVersion() {
 			return nil, false, fmt.Errorf("建造命令载荷冲突，commandID=%s: %w", aggregate.CommandID(), gameerr.ErrStateConflict)
 		}
 		return existing.Clone(), false, nil
@@ -123,7 +123,7 @@ func (r *BuildingRepository) Save(_ context.Context, aggregate *building.Buildin
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.byID[aggregate.ID()]; !ok {
-		return fmt.Errorf("建筑不存在，buildingID=%d: %w", aggregate.ID(), gameerr.ErrDefinitionNotFound)
+		return fmt.Errorf("建筑不存在，buildingID=%d: %w", aggregate.ID(), gameerr.ErrBuildingNotFound)
 	}
 	r.byID[aggregate.ID()] = aggregate.Clone()
 	return nil
@@ -147,7 +147,7 @@ func (r *TrainingRepository) FindByID(_ context.Context, taskID int64) (*trainin
 	defer r.mu.RUnlock()
 	value, ok := r.byID[taskID]
 	if !ok {
-		return nil, fmt.Errorf("训练任务不存在，taskID=%d: %w", taskID, gameerr.ErrDefinitionNotFound)
+		return nil, fmt.Errorf("训练任务不存在，taskID=%d: %w", taskID, gameerr.ErrTrainingNotFound)
 	}
 	return value.Clone(), nil
 }
@@ -158,7 +158,7 @@ func (r *TrainingRepository) FindByCommandID(ctx context.Context, commandID stri
 	id, ok := r.byCommand[commandID]
 	r.mu.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("训练命令不存在，commandID=%s: %w", commandID, gameerr.ErrDefinitionNotFound)
+		return nil, fmt.Errorf("训练命令不存在，commandID=%s: %w", commandID, gameerr.ErrTrainingNotFound)
 	}
 	return r.FindByID(ctx, id)
 }
@@ -169,7 +169,7 @@ func (r *TrainingRepository) SaveIfAbsent(_ context.Context, aggregate *training
 	defer r.mu.Unlock()
 	if id, ok := r.byCommand[aggregate.CommandID()]; ok {
 		existing := r.byID[id]
-		if existing.PlayerID() != aggregate.PlayerID() || existing.BuildingID() != aggregate.BuildingID() || existing.UnitTypeID() != aggregate.UnitTypeID() || existing.Count() != aggregate.Count() {
+		if existing.PlayerID() != aggregate.PlayerID() || existing.BuildingID() != aggregate.BuildingID() || existing.UnitTypeID() != aggregate.UnitTypeID() || existing.Count() != aggregate.Count() || existing.ConfigVersion() != aggregate.ConfigVersion() {
 			return nil, false, fmt.Errorf("训练命令载荷冲突，commandID=%s: %w", aggregate.CommandID(), gameerr.ErrStateConflict)
 		}
 		return existing.Clone(), false, nil
@@ -187,7 +187,7 @@ func (r *TrainingRepository) Save(_ context.Context, aggregate *training.Task) e
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.byID[aggregate.ID()]; !ok {
-		return fmt.Errorf("训练任务不存在，taskID=%d: %w", aggregate.ID(), gameerr.ErrDefinitionNotFound)
+		return fmt.Errorf("训练任务不存在，taskID=%d: %w", aggregate.ID(), gameerr.ErrTrainingNotFound)
 	}
 	r.byID[aggregate.ID()] = aggregate.Clone()
 	return nil

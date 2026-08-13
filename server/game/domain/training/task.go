@@ -19,23 +19,37 @@ const (
 
 // Task 是单位训练任务聚合根。
 type Task struct {
-	id         int64  // 训练任务ID，全局唯一
-	playerID   int64  // 所属玩家ID
-	buildingID int64  // 执行训练的建筑实例ID
-	unitTypeID string // 单位类型稳定ID，来源于游戏包
-	count      int64  // 训练数量，必须大于0
-	status     Status // 当前状态：1=训练中，2=已完成
-	startedAt  int64  // 训练开始时间戳，Unix毫秒
-	completeAt int64  // 可完成时间戳，Unix毫秒
-	commandID  string // 开始训练命令幂等键
+	id            int64  // 训练任务ID，全局唯一
+	playerID      int64  // 所属玩家ID
+	buildingID    int64  // 执行训练的建筑实例ID
+	unitTypeID    string // 单位类型稳定ID，来源于游戏包
+	count         int64  // 训练数量，必须大于0
+	status        Status // 当前状态：1=训练中，2=已完成
+	startedAt     int64  // 训练开始时间戳，Unix毫秒
+	completeAt    int64  // 可完成时间戳，Unix毫秒
+	configVersion string // 开始训练时绑定的游戏包语义版本
+	commandID     string // 开始训练命令幂等键
 }
 
 // NewTask 创建训练中的任务聚合。
-func NewTask(id int64, playerID int64, buildingID int64, unitTypeID string, count int64, startedAt int64, completeAt int64, commandID string) (*Task, error) {
-	if id <= 0 || playerID <= 0 || buildingID <= 0 || unitTypeID == "" || count <= 0 || startedAt <= 0 || completeAt <= startedAt || commandID == "" {
+func NewTask(id int64, playerID int64, buildingID int64, unitTypeID string, count int64, startedAt int64, completeAt int64, configVersion string, commandID string) (*Task, error) {
+	if id <= 0 || playerID <= 0 || buildingID <= 0 || unitTypeID == "" || count <= 0 || startedAt <= 0 || completeAt <= startedAt || configVersion == "" || commandID == "" {
 		return nil, fmt.Errorf("训练任务参数非法，taskID=%d，playerID=%d: %w", id, playerID, gameerr.ErrInvalidCommand)
 	}
-	return &Task{id: id, playerID: playerID, buildingID: buildingID, unitTypeID: unitTypeID, count: count, status: StatusTraining, startedAt: startedAt, completeAt: completeAt, commandID: commandID}, nil
+	return &Task{id: id, playerID: playerID, buildingID: buildingID, unitTypeID: unitTypeID, count: count, status: StatusTraining, startedAt: startedAt, completeAt: completeAt, configVersion: configVersion, commandID: commandID}, nil
+}
+
+// RestoreTask 从可信持久化数据恢复训练任务，并重新校验状态与时间不变量。
+func RestoreTask(id int64, playerID int64, buildingID int64, unitTypeID string, count int64, status Status, startedAt int64, completeAt int64, configVersion string, commandID string) (*Task, error) {
+	aggregate, err := NewTask(id, playerID, buildingID, unitTypeID, count, startedAt, completeAt, configVersion, commandID)
+	if err != nil {
+		return nil, err
+	}
+	if status != StatusTraining && status != StatusComplete {
+		return nil, fmt.Errorf("持久化训练状态非法，taskID=%d，status=%d: %w", id, status, gameerr.ErrStateConflict)
+	}
+	aggregate.status = status
+	return aggregate, nil
 }
 
 // Complete 在达到完成时间后结束训练；重复完成保持幂等。
@@ -73,6 +87,9 @@ func (t *Task) StartedAt() int64 { return t.startedAt }
 
 // CompleteAt 返回最早完成时间戳，单位毫秒。
 func (t *Task) CompleteAt() int64 { return t.completeAt }
+
+// ConfigVersion 返回训练任务绑定的游戏包语义版本。
+func (t *Task) ConfigVersion() string { return t.configVersion }
 
 // CommandID 返回开始训练命令幂等键。
 func (t *Task) CommandID() string { return t.commandID }

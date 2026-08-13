@@ -14,13 +14,14 @@ import (
 // TestBuildingComplete 验证建筑只能在配置时间到达后完成且重复完成幂等。
 func TestBuildingComplete(t *testing.T) {
 	t.Parallel()
-	aggregate, err := NewConstruction(1, 2, "farm", 1000, 2000, "build-1")
+	aggregate, err := NewConstruction(1, 2, "farm", 1000, 2000, "0.1.0", "build-1")
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), aggregate.ID())
 	assert.Equal(t, int64(2), aggregate.PlayerID())
 	assert.Equal(t, "farm", aggregate.TypeID())
 	assert.Equal(t, int64(1000), aggregate.StartedAt())
 	assert.Equal(t, int64(2000), aggregate.CompleteAt())
+	assert.Equal(t, "0.1.0", aggregate.ConfigVersion())
 	assert.Equal(t, "build-1", aggregate.CommandID())
 	assert.Equal(t, aggregate.ID(), aggregate.Clone().ID())
 
@@ -37,7 +38,18 @@ func TestBuildingComplete(t *testing.T) {
 // TestNewConstructionRejectsInvalidInput 验证建筑领域不接受无效时间边界。
 func TestNewConstructionRejectsInvalidInput(t *testing.T) {
 	t.Parallel()
-	_, err := NewConstruction(1, 2, "farm", 1000, 1000, "build-1")
+	_, err := NewConstruction(1, 2, "farm", 1000, 1000, "0.1.0", "build-1")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, gameerr.ErrInvalidCommand))
+}
+
+// TestRestoreBuilding 验证建筑恢复保留合法状态并拒绝未知状态。
+func TestRestoreBuilding(t *testing.T) {
+	t.Parallel()
+	aggregate, err := RestoreBuilding(1, 2, "farm", StatusOperational, 1000, 2000, "0.1.0", "cmd")
+	require.NoError(t, err)
+	assert.Equal(t, StatusOperational, aggregate.Status())
+	_, err = RestoreBuilding(1, 2, "farm", Status(99), 1000, 2000, "0.1.0", "cmd")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, gameerr.ErrStateConflict))
 }
