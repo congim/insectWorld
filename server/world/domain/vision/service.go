@@ -7,8 +7,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"insectworld/server/world/domain/vo"
 	"insectworld/server/shared/pkg/config"
+	"insectworld/server/world/domain/vo"
 )
 
 // VisionService 视野计算domain service，根据配置的视野规则计算实体可见格子集合。

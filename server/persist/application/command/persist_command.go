@@ -20,8 +20,8 @@ import (
 
 // CreateSnapshotHandler 创建快照命令处理器。
 type CreateSnapshotHandler struct {
-	snapshotRepo snapshot.SnapshotRepository
-	logger       *zap.Logger
+	snapshotRepo snapshot.SnapshotRepository // 快照仓储，负责保存快照任务及其状态
+	logger       *zap.Logger                 // 结构化日志器，记录快照命令执行结果
 }
 
 // NewCreateSnapshotHandler 创建快照命令处理器实例。
@@ -37,8 +37,8 @@ func NewCreateSnapshotHandler(
 
 // CreateSnapshotCommand 创建快照命令参数。
 type CreateSnapshotCommand struct {
-	SnapshotID int64 // 快照ID
-	Scope      int   // 快照类型：1=全量 2=增量
+	SnapshotID int64            // 快照ID
+	Scope      int              // 快照类型：1=全量 2=增量
 	DataRange  vo.SnapshotRange // 快照数据范围
 }
 
@@ -66,8 +66,8 @@ func (h *CreateSnapshotHandler) Handle(ctx context.Context, cmd CreateSnapshotCo
 
 // ExecuteMigrationHandler 执行迁移命令处理器。
 type ExecuteMigrationHandler struct {
-	migrationRepo migration.MigrationRepository
-	logger        *zap.Logger
+	migrationRepo migration.MigrationRepository // 迁移仓储，负责持久化已执行版本记录
+	logger        *zap.Logger                   // 结构化日志器，记录迁移命令执行结果
 }
 
 // NewExecuteMigrationHandler 创建迁移命令处理器实例。
@@ -108,8 +108,8 @@ func (h *ExecuteMigrationHandler) Handle(ctx context.Context, cmd ExecuteMigrati
 
 // ArchiveColdDataHandler 归档冷数据命令处理器。
 type ArchiveColdDataHandler struct {
-	archiveRepo archive.ArchiveRepository
-	logger      *zap.Logger
+	archiveRepo archive.ArchiveRepository // 归档仓储，负责保存冷数据归档任务状态
+	logger      *zap.Logger               // 结构化日志器，记录归档命令执行结果
 }
 
 // NewArchiveColdDataHandler 创建归档命令处理器实例。
@@ -155,8 +155,8 @@ func (h *ArchiveColdDataHandler) Handle(ctx context.Context, cmd ArchiveColdData
 
 // CreateBackupHandler 创建备份命令处理器。
 type CreateBackupHandler struct {
-	backupRepo backup.BackupRepository
-	logger     *zap.Logger
+	backupRepo backup.BackupRepository // 备份仓储，负责保存备份任务及其状态
+	logger     *zap.Logger             // 结构化日志器，记录备份命令执行结果
 }
 
 // NewCreateBackupHandler 创建备份命令处理器实例。

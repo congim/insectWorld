@@ -40,7 +40,7 @@ type EventBus interface {
 // Outbox投递状态枚举常量，表示Outbox记录的投递进度。
 // 取值映射：1=待投递 2=已投递 3=失败
 const (
-	OutboxStatusPending  = 1 // 待投递状态，事件已写入Outbox表但尚未成功投递到事件总线
+	OutboxStatusPending   = 1 // 待投递状态，事件已写入Outbox表但尚未成功投递到事件总线
 	OutboxStatusPublished = 2 // 已投递状态，事件已成功投递到事件总线
 	OutboxStatusFailed    = 3 // 失败状态，事件投递失败，需重试或人工介入
 )

@@ -1,0 +1,11 @@
+{
+  "items": [
+    {
+      "id": "nursery-garden",
+      "name": "育苗园",
+      "width": 8,
+      "height": 8,
+      "default_terrain_id": "soft-soil"
+    }
+  ]
+}

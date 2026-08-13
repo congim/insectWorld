@@ -1,0 +1,10 @@
+{
+  "items": [
+    {
+      "id": "soft-soil",
+      "name": "松软土壤",
+      "move_cost": 1,
+      "blocked": false
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "items": [
+    {
+      "id": "ant-colony",
+      "name": "蚁群",
+      "starting_resources": {
+        "food": 100
+      }
+    }
+  ]
+}

@@ -13,11 +13,11 @@ import (
 
 // Handler Persist服务gRPC管理面handler，注入application层command/query。
 type Handler struct {
-	createSnapshotHandler   *persistCmd.CreateSnapshotHandler
-	executeMigrationHandler *persistCmd.ExecuteMigrationHandler
-	archiveColdDataHandler  *persistCmd.ArchiveColdDataHandler
-	createBackupHandler     *persistCmd.CreateBackupHandler
-	logger                  *zap.Logger
+	createSnapshotHandler   *persistCmd.CreateSnapshotHandler   // 创建快照用例处理器
+	executeMigrationHandler *persistCmd.ExecuteMigrationHandler // 执行数据迁移用例处理器
+	archiveColdDataHandler  *persistCmd.ArchiveColdDataHandler  // 归档冷数据用例处理器
+	createBackupHandler     *persistCmd.CreateBackupHandler     // 创建备份用例处理器
+	logger                  *zap.Logger                         // 结构化日志器，记录接口层请求结果
 }
 
 // NewHandler 创建gRPC管理面handler实例。

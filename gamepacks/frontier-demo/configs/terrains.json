@@ -1,0 +1,10 @@
+{
+  "items": [
+    {
+      "id": "open-ground",
+      "name": "开阔地",
+      "move_cost": 1,
+      "blocked": false
+    }
+  ]
+}

@@ -12,8 +12,8 @@ import (
 
 // SnapshotQueryHandler 快照查询处理器。
 type SnapshotQueryHandler struct {
-	snapshotRepo snapshot.SnapshotRepository
-	logger       *zap.Logger
+	snapshotRepo snapshot.SnapshotRepository // 快照仓储，提供最新快照读模型
+	logger       *zap.Logger                 // 结构化日志器，记录快照查询异常
 }
 
 // NewSnapshotQueryHandler 创建快照查询处理器实例。
@@ -39,8 +39,8 @@ func (h *SnapshotQueryHandler) Query(ctx context.Context, scope int) (*snapshot.
 
 // MigrationStatusQueryHandler 迁移状态查询处理器。
 type MigrationStatusQueryHandler struct {
-	migrationRepo migration.MigrationRepository
-	logger        *zap.Logger
+	migrationRepo migration.MigrationRepository // 迁移仓储，提供已执行版本读模型
+	logger        *zap.Logger                   // 结构化日志器，记录迁移查询异常
 }
 
 // NewMigrationStatusQueryHandler 创建迁移状态查询处理器实例。

@@ -1,0 +1,5 @@
+{
+  "id": "insect-world",
+  "default_faction_id": "ant-colony",
+  "default_map_id": "nursery-garden"
+}

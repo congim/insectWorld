@@ -39,17 +39,17 @@ type GatewayStartupConfig struct {
 
 // GatewayDeps Gateway服务依赖容器，封装全部已组装的依赖。
 type GatewayDeps struct {
-	RegisterCmd    *command.RegisterCommand
-	LoginCmd       *command.LoginCommand
-	LogoutCmd      *command.LogoutCommand
-	HeartbeatCmd   *command.HeartbeatCommand
-	AuthQuery      *query.AuthenticateQuery
-	BanCmd         *command.BanCommand
-	UnbanCmd       *command.UnbanCommand
-	SessionCleaner *command.SessionTimeoutCleaner
-	ConnManager    *websocket.ConnectionManager
-	AuditLogger    *auditinfra.AuditLoggerImpl
-	AuthCfg        domainconfig.AuthConfig
+	RegisterCmd    *command.RegisterCommand       // 注册命令，负责账号创建用例编排
+	LoginCmd       *command.LoginCommand          // 登录命令，负责认证与会话创建用例编排
+	LogoutCmd      *command.LogoutCommand         // 登出命令，负责会话销毁与下线事件发布
+	HeartbeatCmd   *command.HeartbeatCommand      // 心跳命令，负责续期在线会话
+	AuthQuery      *query.AuthenticateQuery       // 鉴权查询，负责校验令牌与在线会话
+	BanCmd         *command.BanCommand            // 封禁命令，负责管理员封禁玩家用例编排
+	UnbanCmd       *command.UnbanCommand          // 解封命令，负责管理员解除封禁用例编排
+	SessionCleaner *command.SessionTimeoutCleaner // 会话清理器，负责回收超时在线会话
+	ConnManager    *websocket.ConnectionManager   // 连接管理器，维护玩家与WebSocket连接映射
+	AuditLogger    *auditinfra.AuditLoggerImpl    // 审计日志实现，持久化管理类操作记录
+	AuthCfg        domainconfig.AuthConfig        // 认证配置，作为接入层运行参数的只读快照
 }
 
 // bootstrap 组装Gateway服务全部依赖注入。

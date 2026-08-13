@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "id": "outpost",
+      "name": "前哨站",
+      "faction_id": "settlers",
+      "build_cost": {
+        "supplies": 25
+      },
+      "build_time_ms": 2000,
+      "trainable_unit_ids": [
+        "scout"
+      ]
+    }
+  ]
+}

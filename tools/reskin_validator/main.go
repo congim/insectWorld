@@ -1,154 +1,118 @@
-// Package main ReskinValidator换皮通用性验证机制。
-// 验证至少3个不同SLG题材仅靠配置差异即可在服务端运行，无需改引擎代码。
-// 输出验证报告。
+// Package main 游戏包契约验证工具，离线加载所有游戏包并输出可定位的结果。
 package main
 
 import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
+
+	"insectworld/server/shared/pkg/gamepack"
 )
 
-// 验证结果状态常量（规范1）。
+// 验证结果状态常量，用于进程退出码和报告展示。
 const (
-	ResultPass = 1 // 通过
-	ResultFail = 2 // 失败
-	ResultSkip = 3 // 跳过
+	ResultPass = 1 // 游戏包加载与编译通过
+	ResultFail = 2 // 游戏包加载或编译失败
 )
 
-// 验证用例类型常量（规范1）。
-const (
-	TestCaseMovement = "移动" // 移动功能验证
-	TestCaseCombat   = "战斗" // 战斗功能验证
-	TestCaseEconomy  = "经济" // 经济功能验证
-	TestCaseAlliance = "联盟" // 联盟功能验证
-	TestCaseSeason   = "赛季" // 赛季功能验证
-	TestCaseEvent    = "事件" // 事件功能验证
-)
-
-// 题材配置包路径（规范1常量），验证时分别加载。
-var themeConfigPaths = []string{
-	"configs/theme_sanguo",    // 三国题材配置包
-	"configs/theme_starcraft", // 星际题材配置包
-	"configs/theme_ant",       // 蚂蚁题材配置包
-}
-
-// 核心功能验证用例列表。
-var coreTestCases = []string{
-	TestCaseMovement, TestCaseCombat, TestCaseEconomy,
-	TestCaseAlliance, TestCaseSeason, TestCaseEvent,
-}
-
-// ValidationResult 验证结果。
+// ValidationResult 全部游戏包验证结果。
 type ValidationResult struct {
-	Status       int           // 验证结果状态：1=通过 2=失败 3=跳过
-	ThemeResults []ThemeResult // 各题材验证结果
+	Status      int          // 总体状态：1=通过 2=失败
+	PackResults []PackResult // 按游戏包目录排序的验证明细
 }
 
-// ThemeResult 单个题材验证结果。
-type ThemeResult struct {
-	ThemePath   string       // 题材配置包路径
-	Status      int          // 验证结果状态
-	CaseResults []CaseResult // 各用例验证结果
+// PackResult 单个游戏包验证结果。
+type PackResult struct {
+	PackPath string // 游戏包目录路径
+	PackID   string // 编译成功后的稳定游戏包ID，失败时为空
+	Status   int    // 验证状态：1=通过 2=失败
+	Detail   string // 中文验证详情或具体错误链
 }
 
-// CaseResult 单个验证用例结果。
-type CaseResult struct {
-	TestCase string // 用例名称
-	Status   int    // 验证结果状态
-	Detail   string // 验证详情
-}
-
-// Validator 换皮通用性验证器。
+// Validator 游戏包验证器，使用共享内核的真实加载与编译契约。
 type Validator struct {
-	configPaths []string // 题材配置包路径列表
-	testCases   []string // 核心功能验证用例列表
+	root          string // 游戏包集合根目录
+	engineVersion string // 当前引擎语义版本
 }
 
-// NewValidator 创建验证器实例。
-func NewValidator() *Validator {
-	return &Validator{
-		configPaths: themeConfigPaths,
-		testCases:   coreTestCases,
-	}
+// NewValidator 创建游戏包验证器。
+func NewValidator(root string, engineVersion string) *Validator {
+	return &Validator{root: root, engineVersion: engineVersion}
 }
 
-// Validate 执行换皮通用性验证。
+// Validate 验证根目录下所有包含manifest.yaml的游戏包。
 func (v *Validator) Validate() *ValidationResult {
 	result := &ValidationResult{Status: ResultPass}
-
-	for _, path := range v.configPaths {
-		themeResult := v.validateTheme(path)
-		result.ThemeResults = append(result.ThemeResults, themeResult)
-		if themeResult.Status != ResultPass {
-			result.Status = ResultFail
-		}
+	entries, err := os.ReadDir(v.root)
+	if err != nil {
+		result.Status = ResultFail
+		result.PackResults = append(result.PackResults, PackResult{PackPath: v.root, Status: ResultFail, Detail: fmt.Sprintf("读取游戏包根目录失败: %v", err)})
+		return result
 	}
 
+	paths := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		path := filepath.Join(v.root, entry.Name())
+		if _, err := os.Stat(filepath.Join(path, "manifest.yaml")); err == nil {
+			paths = append(paths, path)
+		}
+	}
+	sort.Strings(paths)
+	if len(paths) < 2 {
+		result.Status = ResultFail
+		result.PackResults = append(result.PackResults, PackResult{PackPath: v.root, Status: ResultFail, Detail: "至少需要两个游戏包验证通用契约"})
+		return result
+	}
+
+	for _, path := range paths {
+		pack, err := gamepack.LoadAndCompile(path, v.engineVersion)
+		if err != nil {
+			result.Status = ResultFail
+			result.PackResults = append(result.PackResults, PackResult{PackPath: path, Status: ResultFail, Detail: err.Error()})
+			continue
+		}
+		result.PackResults = append(result.PackResults, PackResult{
+			PackPath: path,
+			PackID:   pack.Manifest.ID,
+			Status:   ResultPass,
+			Detail:   fmt.Sprintf("编译通过：阵营=%d 资源=%d 单位=%d 建筑=%d 地图=%d", len(pack.Factions), len(pack.Resources), len(pack.Units), len(pack.Buildings), len(pack.Maps)),
+		})
+	}
 	return result
 }
 
-// validateTheme 验证单个题材。
-func (v *Validator) validateTheme(configPath string) ThemeResult {
-	themeResult := ThemeResult{
-		ThemePath: configPath,
-		Status:    ResultPass,
-	}
-
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		themeResult.Status = ResultSkip
-		themeResult.CaseResults = []CaseResult{{TestCase: "配置包加载", Status: ResultSkip, Detail: "配置包路径不存在，跳过"}}
-		return themeResult
-	}
-
-	for _, tc := range v.testCases {
-		themeResult.CaseResults = append(themeResult.CaseResults, CaseResult{
-			TestCase: tc,
-			Status:   ResultPass,
-			Detail:   "验证通过（配置驱动，无需改引擎代码）",
-		})
-	}
-
-	return themeResult
-}
-
-// printReport 打印验证报告。
 func printReport(result *ValidationResult) {
-	fmt.Println("=== 换皮通用性验证报告 ===")
-	for _, tr := range result.ThemeResults {
-		statusStr := "通过"
-		if tr.Status == ResultFail {
-			statusStr = "失败"
-		} else if tr.Status == ResultSkip {
-			statusStr = "跳过"
+	fmt.Println("=== 游戏包契约验证报告 ===")
+	for _, pack := range result.PackResults {
+		status := "通过"
+		if pack.Status == ResultFail {
+			status = "失败"
 		}
-		fmt.Printf("\n题材: %s [%s]\n", tr.ThemePath, statusStr)
-		for _, cr := range tr.CaseResults {
-			caseStatus := "通过"
-			if cr.Status == ResultFail {
-				caseStatus = "失败"
-			} else if cr.Status == ResultSkip {
-				caseStatus = "跳过"
-			}
-			fmt.Printf("  %s: [%s] %s\n", cr.TestCase, caseStatus, cr.Detail)
+		identity := pack.PackID
+		if identity == "" {
+			identity = pack.PackPath
 		}
+		fmt.Printf("%s [%s] %s\n", identity, status, pack.Detail)
 	}
-
 	if result.Status == ResultPass {
-		fmt.Println("\n换皮通用性验证通过")
+		fmt.Println("游戏包契约验证通过")
 	} else {
-		fmt.Println("\n换皮通用性验证失败")
+		fmt.Println("游戏包契约验证失败")
 	}
 }
 
 func main() {
-	_ = flag.String("config", "", "配置文件路径")
+	root := flag.String("root", "../gamepacks", "游戏包集合根目录")
+	engineVersion := flag.String("engine-version", "0.1.0", "当前引擎语义版本")
 	flag.Parse()
 
-	validator := NewValidator()
-	result := validator.Validate()
+	result := NewValidator(*root, *engineVersion).Validate()
 	printReport(result)
-
 	if result.Status == ResultFail {
 		os.Exit(1)
 	}

@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "id": "brood-chamber",
+      "name": "育幼室",
+      "faction_id": "ant-colony",
+      "build_cost": {
+        "food": 25
+      },
+      "build_time_ms": 2000,
+      "trainable_unit_ids": [
+        "worker-ant"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "items": [
+    {
+      "id": "settlers",
+      "name": "拓荒者",
+      "starting_resources": {
+        "supplies": 100
+      }
+    }
+  ]
+}

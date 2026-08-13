@@ -6,9 +6,9 @@ import (
 	"context"
 	"fmt"
 
+	"insectworld/server/shared/pkg/config"
 	worlderr "insectworld/server/world/domain/errors"
 	"insectworld/server/world/domain/vo"
-	"insectworld/server/shared/pkg/config"
 )
 
 // 传送类型常量（规范1），对应movement.json的传送类型配置。

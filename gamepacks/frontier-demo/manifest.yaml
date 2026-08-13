@@ -1,0 +1,41 @@
+api_version: 1
+id: frontier-demo
+name: 边境示例
+version: 0.1.0
+engine:
+  min_version: 0.1.0
+  max_exclusive: 0.2.0
+modules:
+  - world
+  - growth
+  - combat
+  - economy
+configs:
+  - id: game
+    path: configs/game.json
+    schema: game/v1
+    required: true
+  - id: factions
+    path: configs/factions.json
+    schema: factions/v1
+    required: true
+  - id: resources
+    path: configs/resources.json
+    schema: resources/v1
+    required: true
+  - id: units
+    path: configs/units.json
+    schema: units/v1
+    required: true
+  - id: buildings
+    path: configs/buildings.json
+    schema: buildings/v1
+    required: true
+  - id: terrains
+    path: configs/terrains.json
+    schema: terrains/v1
+    required: true
+  - id: maps
+    path: configs/maps.json
+    schema: maps/v1
+    required: true

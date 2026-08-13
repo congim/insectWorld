@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "id": "worker-ant",
+      "name": "工蚁",
+      "faction_id": "ant-colony",
+      "attack": 4,
+      "defense": 6,
+      "health": 20,
+      "train_cost": {
+        "food": 10
+      },
+      "train_time_ms": 1000
+    }
+  ]
+}

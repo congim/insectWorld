@@ -11,8 +11,8 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
-	socialgrpc "insectworld/server/social/interfaces/grpc"
 	socialpb "insectworld/server/shared/proto/social"
+	socialgrpc "insectworld/server/social/interfaces/grpc"
 )
 
 // SocialServicePort Social服务监听端口。

@@ -1,0 +1,5 @@
+{
+  "id": "frontier-demo",
+  "default_faction_id": "settlers",
+  "default_map_id": "frontier-plain"
+}

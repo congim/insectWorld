@@ -24,19 +24,19 @@ type Timestamp int64
 // 实体类型枚举常量，覆盖SLG游戏中常见的实体种类。
 // 取值映射：1=单位 2=建筑 3=英雄 4=资源点 5=据点
 const (
-	EntityTypeUnit     EntityType = 1 // 单位实体，可移动的战斗单位
-	EntityTypeBuilding EntityType = 2 // 建筑实体，固定在地图上的功能性建筑
-	EntityTypeHero     EntityType = 3 // 英雄实体，具有特殊技能的强力单位
-	EntityTypeResource EntityType = 4 // 资源点实体，产出游戏资源的地图节点
+	EntityTypeUnit       EntityType = 1 // 单位实体，可移动的战斗单位
+	EntityTypeBuilding   EntityType = 2 // 建筑实体，固定在地图上的功能性建筑
+	EntityTypeHero       EntityType = 3 // 英雄实体，具有特殊技能的强力单位
+	EntityTypeResource   EntityType = 4 // 资源点实体，产出游戏资源的地图节点
 	EntityTypeStronghold EntityType = 5 // 据点实体，可占领的战略要地
 )
 
 // 实体状态枚举常量，覆盖实体在游戏生命周期中的行为状态。
 // 取值映射：1=空闲 2=移动中 3=战斗中 4=已死亡 5=采集中
 const (
-	EntityStatusIdle    EntityStatus = 1 // 空闲状态，实体无正在执行的动作
-	EntityStatusMoving  EntityStatus = 2 // 移动中状态，实体正在执行移动订单
-	EntityStatusCombat  EntityStatus = 3 // 战斗中状态，实体正在参与战斗回合
-	EntityStatusDead    EntityStatus = 4 // 已死亡状态，实体被消灭等待清理
+	EntityStatusIdle      EntityStatus = 1 // 空闲状态，实体无正在执行的动作
+	EntityStatusMoving    EntityStatus = 2 // 移动中状态，实体正在执行移动订单
+	EntityStatusCombat    EntityStatus = 3 // 战斗中状态，实体正在参与战斗回合
+	EntityStatusDead      EntityStatus = 4 // 已死亡状态，实体被消灭等待清理
 	EntityStatusGathering EntityStatus = 5 // 采集中状态，实体正在采集资源
 )

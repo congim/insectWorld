@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "id": "scout",
+      "name": "侦察队",
+      "faction_id": "settlers",
+      "attack": 5,
+      "defense": 5,
+      "health": 20,
+      "train_cost": {
+        "supplies": 10
+      },
+      "train_time_ms": 1000
+    }
+  ]
+}

@@ -16,10 +16,10 @@ import (
 
 // Manager 数据源管理器，管理多数据源连接池。
 type Manager struct {
-	mysqlDB  *sql.DB    // MySQL连接池，热库数据源
-	coldDB   *sql.DB    // 冷库MySQL连接池，归档冷数据存储
-	logger   *zap.Logger // 结构化日志
-	mu       sync.RWMutex // 读写锁，保护连接池并发访问
+	mysqlDB *sql.DB      // MySQL连接池，热库数据源
+	coldDB  *sql.DB      // 冷库MySQL连接池，归档冷数据存储
+	logger  *zap.Logger  // 结构化日志
+	mu      sync.RWMutex // 读写锁，保护连接池并发访问
 }
 
 // NewManager 创建数据源管理器实例。

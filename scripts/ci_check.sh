@@ -38,7 +38,7 @@ run_in_modules() {
 echo "========== CI 规范检查开始 =========="
 echo "发现 ${#MODULES[@]} 个服务端 module、${#EXTERNAL_MODULES[@]} 个外部 module、${#SERVICES[@]} 个 DDD 服务目录"
 
-echo ">>> [0/6] gofmt 检查"
+echo ">>> [0/7] gofmt 检查"
 for module_dir in "${MODULES[@]}" "${EXTERNAL_MODULES[@]}"; do
     gofmt_files=$(cd "$module_dir" && gofmt -l . 2>/dev/null || true)
     if [ -n "$gofmt_files" ]; then
@@ -49,7 +49,7 @@ for module_dir in "${MODULES[@]}" "${EXTERNAL_MODULES[@]}"; do
 done
 echo "PASS: gofmt 检查通过"
 
-echo ">>> [1/6] goimports 检查"
+echo ">>> [1/7] goimports 检查"
 if command -v goimports >/dev/null 2>&1; then
     for module_dir in "${MODULES[@]}" "${EXTERNAL_MODULES[@]}"; do
         goimports_files=$(cd "$module_dir" && goimports -l . 2>/dev/null || true)
@@ -64,7 +64,7 @@ else
     echo "SKIP: goimports 未安装"
 fi
 
-echo ">>> [2/6] golangci-lint 检查"
+echo ">>> [2/7] golangci-lint 检查"
 if command -v golangci-lint >/dev/null 2>&1; then
     run_in_modules "golangci-lint run ./..."
     for module_dir in "${EXTERNAL_MODULES[@]}"; do
@@ -75,26 +75,30 @@ else
     echo "SKIP: golangci-lint 未安装"
 fi
 
-echo ">>> [3/6] 注释、字段与类型规范扫描"
+echo ">>> [3/7] 注释、字段与类型规范扫描"
 for service_dir in "${SERVICES[@]}"; do
     (cd tools && go run ./spec_scanner -dir "../$service_dir")
 done
 (cd tools && go run ./spec_scanner -dir ../server/shared/pkg)
 echo "PASS: 规范扫描通过"
 
-echo ">>> [4/6] 表名扫描"
+echo ">>> [4/7] 表名扫描"
 for service_dir in "${SERVICES[@]}"; do
     (cd tools && go run ./table_name_scanner -dir "../$service_dir")
 done
 echo "PASS: 表名扫描通过"
 
-echo ">>> [5/6] DDD 依赖方向扫描"
+echo ">>> [5/7] DDD 依赖方向扫描"
 for service_dir in "${SERVICES[@]}"; do
     (cd tools && go run ./ddd_dependency_scanner -dir "../$service_dir")
 done
 echo "PASS: DDD 依赖方向扫描通过"
 
-echo ">>> [6/6] 单元测试与竞态检测"
+echo ">>> [6/7] 游戏包契约验证"
+(cd tools && go run ./reskin_validator -root ../gamepacks -engine-version 0.1.0)
+echo "PASS: 游戏包契约验证通过"
+
+echo ">>> [7/7] 单元测试与竞态检测"
 run_in_modules "go test -race -count=1 ./..."
 for module_dir in "${EXTERNAL_MODULES[@]}"; do
     (cd "$module_dir" && go test -race -count=1 ./...)

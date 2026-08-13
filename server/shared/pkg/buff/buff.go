@@ -50,9 +50,9 @@ type BuffApplyResult struct {
 // 叠加策略枚举常量，决定同种buff重复施加时的层数计算方式。
 // 取值映射：1=replace 2=stack 3=refresh
 const (
-	stackStrategyReplace  = 1 // 替换策略，新buff替换旧buff，层数重置为incoming
-	stackStrategyStack    = 2 // 叠加策略，层数累加，上限为maxStack
-	stackStrategyRefresh  = 3 // 刷新策略，层数取较大值，并刷新过期时间
+	stackStrategyReplace = 1 // 替换策略，新buff替换旧buff，层数重置为incoming
+	stackStrategyStack   = 2 // 叠加策略，层数累加，上限为maxStack
+	stackStrategyRefresh = 3 // 刷新策略，层数取较大值，并刷新过期时间
 )
 
 // BuffStack buff叠加策略值对象，管理同种buff的叠加层数计算。

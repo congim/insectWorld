@@ -24,25 +24,32 @@ func newTestSessionCleaner(
 	return NewSessionTimeoutCleaner(sessionRepo, eventBus, cfg, logger)
 }
 
-// TestSessionTimeoutCleaner_RunAndClean 测试清理器运行后触发超时会话清理。
+// TestSessionTimeoutCleaner_RunAndClean 测试定时任务触发超时会话清理并安全退出。
 func TestSessionTimeoutCleaner_RunAndClean(t *testing.T) {
 	expiredSession := domainsession.NewOnlineSession(1001, "conn", 1700000000000, 1, "device")
 	sessionRepo := &mockSessionRepo{
 		findExpiredResult: []*domainsession.OnlineSession{expiredSession},
 	}
 	eventBus := &mockEventBus{}
-	// SessionTimeoutMs=4000 → cleanInterval=1000ms=1s（最小1秒）
 	cfg := domainconfig.DefaultAuthConfig()
 	cfg.SessionTimeoutMs = 4000
 
 	cleaner := newTestSessionCleaner(sessionRepo, eventBus, cfg)
-
 	ctx, cancel := context.WithCancel(context.Background())
-	go cleaner.Run(ctx)
+	done := make(chan struct{})
+	go func() {
+		cleaner.Run(ctx)
+		close(done)
+	}()
 
-	// 等待ticker触发（1秒间隔+缓冲）
+	// 清理周期下限为1秒；等待首轮执行后取消，并在读取mock前等待任务完全退出。
 	time.Sleep(1500 * time.Millisecond)
 	cancel()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("清理器未在3秒内退出")
+	}
 
 	// 应查询超时会话
 	assert.Greater(t, sessionRepo.findExpiredCallCount, 0, "应调用FindExpired查询超时会话")
@@ -60,12 +67,7 @@ func TestSessionTimeoutCleaner_NoExpired(t *testing.T) {
 	cfg.SessionTimeoutMs = 4000
 
 	cleaner := newTestSessionCleaner(sessionRepo, eventBus, cfg)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go cleaner.Run(ctx)
-
-	time.Sleep(1500 * time.Millisecond)
-	cancel()
+	cleaner.cleanOnce(context.Background())
 
 	assert.Greater(t, sessionRepo.findExpiredCallCount, 0, "应调用FindExpired")
 	assert.Equal(t, 0, sessionRepo.deleteCallCount, "无超时会话不应删除")
@@ -80,12 +82,7 @@ func TestSessionTimeoutCleaner_FindExpiredError(t *testing.T) {
 	cfg.SessionTimeoutMs = 4000
 
 	cleaner := newTestSessionCleaner(sessionRepo, eventBus, cfg)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go cleaner.Run(ctx)
-
-	time.Sleep(1500 * time.Millisecond)
-	cancel()
+	cleaner.cleanOnce(context.Background())
 
 	// FindExpired故障不应导致panic，且不应删除或发布
 	assert.Greater(t, sessionRepo.findExpiredCallCount, 0)
@@ -129,12 +126,7 @@ func TestSessionTimeoutCleaner_DeleteError(t *testing.T) {
 	cfg.SessionTimeoutMs = 4000
 
 	cleaner := newTestSessionCleaner(sessionRepo, eventBus, cfg)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go cleaner.Run(ctx)
-
-	time.Sleep(1500 * time.Millisecond)
-	cancel()
+	cleaner.cleanOnce(context.Background())
 
 	// 删除失败不应发布下线事件
 	require.Greater(t, sessionRepo.deleteCallCount, 0)
