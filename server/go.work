@@ -10,4 +10,8 @@ use (
 	./gateway
 	./config
 	./persist
+	./inventory
+	./task
+	./match
+	./crossserver
 )

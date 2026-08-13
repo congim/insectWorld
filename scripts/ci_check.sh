@@ -1,123 +1,104 @@
 #!/bin/bash
-# CI规范检查脚本，落地AGENTS.md全部9条规范的CI静态检查。
-# 适配微服务多module结构，遍历server内9个module目录逐一检查。
-# 在CI流水线中执行（从项目根执行），任一检查失败即阻断合入。
-# 目录整理后：server内9个module（shared+8服务），外迁tests/tools至项目根。
+# CI 规范检查脚本：动态发现仓库中的 Go module 与 DDD 服务目录，避免新增模块逃逸检查。
 
-set -e
+set -euo pipefail
 
-# server内全部Go module目录（shared + 8个服务）
-# framework已移除（零引用），integration已外迁至tests/integration
-MODULES=("server/shared" "server/world" "server/combat" "server/economy" "server/social" "server/operation" "server/gateway" "server/config" "server/persist")
+MODULES=()
+EXTERNAL_MODULES=()
+SERVICES=()
 
-# 外迁的Go module目录（测试与工具）
-EXTERNAL_MODULES=("tests/integration" "tests/authtest" "tools")
+for module_file in server/*/go.mod; do
+    [ -f "$module_file" ] || continue
+    MODULES+=("${module_file%/go.mod}")
+done
 
-# 全部服务目录（用于规范扫描，相对项目根）
-SERVICES=("world" "combat" "economy" "social" "operation" "gateway" "config" "persist")
+for module_file in tests/*/go.mod tools/go.mod; do
+    [ -f "$module_file" ] || continue
+    EXTERNAL_MODULES+=("${module_file%/go.mod}")
+done
 
-# run_check_per_module 对每个Go module目录执行指定命令。
-# 参数1: 检查名称（用于日志输出）
-# 参数2: 要执行的命令（在module目录下执行）
-run_check_per_module() {
-    local check_name="$1"
-    local cmd="$2"
-    for mod in "${MODULES[@]}"; do
-        (cd "$mod" && eval "$cmd")
+for service_dir in server/*; do
+    [ -d "$service_dir/domain" ] || continue
+    SERVICES+=("$service_dir")
+done
+
+if [ "${#MODULES[@]}" -eq 0 ]; then
+    echo "FAIL: server 下未发现 Go module"
+    exit 1
+fi
+
+run_in_modules() {
+    local command_text="$1"
+    local module_dir
+    for module_dir in "${MODULES[@]}"; do
+        (cd "$module_dir" && eval "$command_text")
     done
 }
 
-# run_check_per_service 对每个服务目录执行指定命令。
-# 参数1: 检查名称（用于日志输出）
-# 参数2: 要执行的命令（在项目根执行，通过$svc变量引用服务名）
-run_check_per_service() {
-    local check_name="$1"
-    local cmd="$2"
-    for svc in "${SERVICES[@]}"; do
-        eval "$cmd"
-    done
-}
+echo "========== CI 规范检查开始 =========="
+echo "发现 ${#MODULES[@]} 个服务端 module、${#EXTERNAL_MODULES[@]} 个外部 module、${#SERVICES[@]} 个 DDD 服务目录"
 
-echo "========== CI规范检查开始 =========="
-
-# 0. 代码格式化检查（规范9）
-echo ">>> [0/6] gofmt检查..."
-for mod in "${MODULES[@]}"; do
-    gofmt_files=$(cd "$mod" && gofmt -l . 2>/dev/null || true)
+echo ">>> [0/6] gofmt 检查"
+for module_dir in "${MODULES[@]}" "${EXTERNAL_MODULES[@]}"; do
+    gofmt_files=$(cd "$module_dir" && gofmt -l . 2>/dev/null || true)
     if [ -n "$gofmt_files" ]; then
-        echo "FAIL: $mod gofmt检查未通过，以下文件需格式化:"
+        echo "FAIL: $module_dir 存在未格式化文件"
         echo "$gofmt_files"
         exit 1
     fi
 done
-for mod in "${EXTERNAL_MODULES[@]}"; do
-    gofmt_files=$(cd "$mod" && gofmt -l . 2>/dev/null || true)
-    if [ -n "$gofmt_files" ]; then
-        echo "FAIL: $mod gofmt检查未通过，以下文件需格式化:"
-        echo "$gofmt_files"
-        exit 1
-    fi
+echo "PASS: gofmt 检查通过"
+
+echo ">>> [1/6] goimports 检查"
+if command -v goimports >/dev/null 2>&1; then
+    for module_dir in "${MODULES[@]}" "${EXTERNAL_MODULES[@]}"; do
+        goimports_files=$(cd "$module_dir" && goimports -l . 2>/dev/null || true)
+        if [ -n "$goimports_files" ]; then
+            echo "FAIL: $module_dir 存在未整理 import 的文件"
+            echo "$goimports_files"
+            exit 1
+        fi
+    done
+    echo "PASS: goimports 检查通过"
+else
+    echo "SKIP: goimports 未安装"
+fi
+
+echo ">>> [2/6] golangci-lint 检查"
+if command -v golangci-lint >/dev/null 2>&1; then
+    run_in_modules "golangci-lint run ./..."
+    for module_dir in "${EXTERNAL_MODULES[@]}"; do
+        (cd "$module_dir" && golangci-lint run ./...)
+    done
+    echo "PASS: golangci-lint 检查通过"
+else
+    echo "SKIP: golangci-lint 未安装"
+fi
+
+echo ">>> [3/6] 注释、字段与类型规范扫描"
+for service_dir in "${SERVICES[@]}"; do
+    (cd tools && go run ./spec_scanner -dir "../$service_dir")
 done
-echo "PASS: gofmt检查通过"
-
-# 1. goimports检查（规范9）
-echo ">>> [1/6] goimports检查..."
-if command -v goimports &> /dev/null; then
-    for mod in "${MODULES[@]}"; do
-        goimports_files=$(cd "$mod" && goimports -l . 2>/dev/null || true)
-        if [ -n "$goimports_files" ]; then
-            echo "FAIL: $mod goimports检查未通过"
-            echo "$goimports_files"
-            exit 1
-        fi
-    done
-    for mod in "${EXTERNAL_MODULES[@]}"; do
-        goimports_files=$(cd "$mod" && goimports -l . 2>/dev/null || true)
-        if [ -n "$goimports_files" ]; then
-            echo "FAIL: $mod goimports检查未通过"
-            echo "$goimports_files"
-            exit 1
-        fi
-    done
-    echo "PASS: goimports检查通过"
-else
-    echo "SKIP: goimports未安装，跳过"
-fi
-
-# 2. golangci-lint检查（规范3/5/7/9）
-echo ">>> [2/6] golangci-lint检查..."
-if command -v golangci-lint &> /dev/null; then
-    run_check_per_module "golangci-lint" "golangci-lint run ./..."
-    for mod in "${EXTERNAL_MODULES[@]}"; do
-        (cd "$mod" && golangci-lint run ./...)
-    done
-    echo "PASS: golangci-lint检查通过"
-else
-    echo "SKIP: golangci-lint未安装，跳过"
-fi
-
-# 3. 自定义规范扫描（规范1/5/6/8/9）
-echo ">>> [3/6] 规范扫描（spec_scanner）..."
-run_check_per_service "spec_scanner" "(cd tools && go run ./spec_scanner -dir \"../server/\$svc\")"
 (cd tools && go run ./spec_scanner -dir ../server/shared/pkg)
 echo "PASS: 规范扫描通过"
 
-# 4. 表名t_前缀扫描（规范2）
-echo ">>> [4/6] 表名t_前缀扫描..."
-run_check_per_service "table_name_scanner" "(cd tools && go run ./table_name_scanner -dir \"../server/\$svc\")"
+echo ">>> [4/6] 表名扫描"
+for service_dir in "${SERVICES[@]}"; do
+    (cd tools && go run ./table_name_scanner -dir "../$service_dir")
+done
 echo "PASS: 表名扫描通过"
 
-# 5. DDD依赖方向校验（规范3）
-echo ">>> [5/6] DDD依赖方向校验..."
-run_check_per_service "ddd_dependency_scanner" "(cd tools && go run ./ddd_dependency_scanner -dir \"../server/\$svc\")"
-echo "PASS: DDD依赖方向校验通过"
+echo ">>> [5/6] DDD 依赖方向扫描"
+for service_dir in "${SERVICES[@]}"; do
+    (cd tools && go run ./ddd_dependency_scanner -dir "../$service_dir")
+done
+echo "PASS: DDD 依赖方向扫描通过"
 
-# 6. 单元测试+竞态检测（规范9）
-echo ">>> [6/6] 单元测试（go test -race）..."
-run_check_per_module "unit_test" "go test -race -count=1 ./..."
-(cd tests/integration && go test -race -count=1 ./...)
-(cd tests/authtest && go test -race -count=1 ./...)
-(cd tools && go test -race -count=1 ./...)
+echo ">>> [6/6] 单元测试与竞态检测"
+run_in_modules "go test -race -count=1 ./..."
+for module_dir in "${EXTERNAL_MODULES[@]}"; do
+    (cd "$module_dir" && go test -race -count=1 ./...)
+done
 echo "PASS: 单元测试全部通过"
 
-echo "========== CI规范检查全部通过 =========="
+echo "========== CI 规范检查全部通过 =========="

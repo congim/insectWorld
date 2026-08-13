@@ -63,9 +63,9 @@ func main() {
 	defer ds.Close()
 
 	migrationRepo := persistence.NewMigrationRepoImpl(ds.MySQL())
-	snapshotRepo := snapshot.NewSnapshotRepoImpl(ds.MySQL())
-	archiveRepo := archive.NewArchiveRepoImpl(ds.MySQL())
-	backupRepo := backup.NewBackupRepoImpl(ds.MySQL())
+	snapshotRepo := snapshot.NewSnapshotRepoImpl(ds.MySQL(), logger)
+	archiveRepo := archive.NewArchiveRepoImpl(ds.MySQL(), logger)
+	backupRepo := backup.NewBackupRepoImpl(ds.MySQL(), logger)
 
 	createSnapshotHandler := command.NewCreateSnapshotHandler(snapshotRepo, logger)
 	executeMigrationHandler := command.NewExecuteMigrationHandler(migrationRepo, logger)
